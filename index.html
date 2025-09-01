@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RTM Live Dashboard</title>
+<title>RTM Dashboard - HUN</title>
 <style>
   :root{
     --bg:#0b0f19;
@@ -19,7 +19,6 @@
   *{box-sizing:border-box}
   html,body{height:100%}
 
-  /* ------ FIXED BACKGROUND (no seams) ------ */
   body{
     margin:0;
     font: 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
@@ -31,7 +30,7 @@
   body::before{
     content:"";
     position: fixed;
-    inset:-20% -20% -20% -20%; /* canvas larger than viewport */
+    inset:-20% -20% -20% -20%;
     pointer-events:none;
     z-index:-1;
     background:
@@ -45,9 +44,6 @@
         rgba(14,27,52,.22) 55%,
         rgba(14,27,52,0) 75%);
     background-repeat:no-repeat;
-    /* uncomment if на некоторых дисплеях заметны полосы:
-    filter: blur(1px);
-    */
   }
   @media (min-width: 1800px){
     body::before{
@@ -63,7 +59,6 @@
           rgba(14,27,52,0) 76%);
     }
   }
-  /* ---------------------------------------- */
 
   .wrap{max-width:1200px;margin:24px auto;padding:0 16px 64px}
   header{display:grid;gap:16px;grid-template-columns: repeat(4, minmax(0,1fr));align-items:stretch;margin-bottom:20px}
@@ -131,6 +126,48 @@
     z-index: 1000;
     pointer-events: none;
   }
+
+  .search-wrap{position: relative;display: flex;align-items: center;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);color:#d6dcf5;border-radius:999px;height:40px;padding:0 10px;cursor:pointer;transition:.25s all ease;min-width: 40px;}
+  .search-wrap svg{position: absolute;left: 50%;top: 50%;transform: translate(-50%,-50%);width:16px; height:16px;pointer-events: none;}
+  .search-wrap input{border:none; outline:none; background:transparent; color:#e8eefc; font:inherit;width:0; opacity:0;position: absolute;right: 12px;transition:.25s width ease, .2s opacity ease;}
+  .search-wrap.open{padding:0 12px;}
+  .search-wrap.open svg{position: static;transform: none;margin-right: 8px;}
+  .search-wrap.open input{position: static;width: 180px;opacity: 1;}
+
+  tr.match-active   { background: rgba(52,211,153,.15) !important; box-shadow: inset 0 0 0 1px rgba(52,211,153,.35); }
+  tr.match-pre      { background: rgba(251,191,36,.15) !important; box-shadow: inset 0 0 0 1px rgba(251,191,36,.35); }
+  tr.match-away     { background: rgba(248,113,113,.15) !important; box-shadow: inset 0 0 0 1px rgba(248,113,113,.35); }
+  tr.match-active td b,
+  tr.match-pre td b,
+  tr.match-away td b { font-weight:800 }
+
+  /* NEW: ссылки в ячейках имён выглядят как текст */
+  td.name-cell a{
+    color:#e8eefc;
+    text-decoration:none;
+    border-bottom:1px dotted rgba(255,255,255,.28);
+  }
+  td.name-cell a:hover{ color: var(--accent); border-bottom-color: var(--accent); }
+  /* перекраска двух конкретных кнопок */
+  #btnShifts, #btnStats{
+  border-color: rgba(79,140,255,.45); /* синий бордер */
+  color: #e9f1ff;                     /* текст */
+}
+#btnShifts:hover, #btnStats:hover{
+  background: rgba(79,140,255,.28);
+  box-shadow: 0 0 0 2px var(--ring) inset;
+}
+.support-link{
+    border-color: rgba(79,140,255,.45); /* синий бордер */
+  text-decoration:none;
+  cursor:pointer;
+}
+.support-link:hover{
+  background:rgba(79,140,255,.25); /* подсветка при наведении */
+  border-color:var(--accent);
+  color:#fff;
+}
+
 </style>
 </head>
 <body>
@@ -140,13 +177,24 @@
 
   <div class="wrap">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
-      <div class="flex">
-        <div class="pill">Support Monitoring Dashboard - Hungary</div>
-        <div class="pill btn" id="btnShifts">Today’s shifts</div>
-        <div class="pill btn" id="btnStats">Statistics</div>
-        <div class="pill btn" id="btnStats">Search</div>
-      </div>
-      <div class="pill last-updated" id="lastUpdated">—</div>
+    <div class="flex">
+    <div class="pill">Support Monitoring Dashboard - Hungary</div>
+    <div class="pill btn" id="btnShifts">Today’s shifts</div>
+    <div class="pill btn" id="btnStats">Statistics</div>
+
+    <div class="search-wrap" id="searchWrap" title="Search teammates">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.2-4.2M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <input id="globalSearch" type="search" placeholder="Search teammate" />
+    </div>
+    </div>
+
+      <div style="display:flex; align-items:center; gap:12px; justify-self:end">
+  <a href="https://app.slack.com/client/E033H7MNDS5/C0999U4TYA0" 
+     target="_blank" 
+     class="pill support-link">Support</a>
+  <div class="pill last-updated" id="lastUpdated">—</div>
+</div>
+
     </div>
 
     <header>
@@ -245,12 +293,13 @@
 <script>
 // === CONFIG ===
 const SHEET_ID = "12gcER4PN-gE3sAOz5pj_ihT-cdmqA6XhSn2wCb-6ykk";
-const API_KEY  = "AIzaSyCfTHMy3fauwqbopmDRiD5siI6hH4Fmn38"; // <- put your key here
+const API_KEY  = "AIzaSyCfTHMy3fauwqbopmDRiD5siI6hH4Fmn38";
 const SHEET    = "RTM";
 const SHIFT_SHEET = "Current Shift";
+const EMP_SHEET = "Employee list";     // NEW
 const REFRESH_MS = 15000;
 
-// Ranges for the main dashboard + shifts
+// Ranges for the main dashboard + shifts + employee list
 const ranges = [
   `${SHEET}!A2:E`,
   `${SHEET}!H2:M`,
@@ -261,11 +310,14 @@ const ranges = [
   `${SHEET}!AD2`,
   `${SHEET}!X5`,
   `${SHEET}!Z5`,
-  `${SHIFT_SHEET}!A2:F` // today's shifts
+  `${EMP_SHEET}!C2:C`,              // NEW (names)
+  `${EMP_SHEET}!H2:H`,              // NEW (Converseid)
+  `${SHIFT_SHEET}!A2:F`
 ];
 
-let cachedShifts = []; // keep for searching
-let shiftQuery = "";   // preserve user query across refreshes
+let cachedShifts = [];
+let shiftQuery = "";
+let empMap = new Map();              // NEW: name -> Converseid
 
 async function fetchRanges(){
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?` +
@@ -276,9 +328,43 @@ async function fetchRanges(){
 }
 
 function cell(v){ return (Array.isArray(v) && v.length && v[0]!==undefined) ? v[0] : (typeof v==="string"?v:""); }
+let globalQuery = "";
+const HIGHLIGHT_CLASSES = ["match-active","match-pre","match-away"];
+
+// NEW: нормализатор имени для сопоставления
+function normalizeName(s){
+  return (s||"").toString().trim().replace(/\s+/g," ").toLowerCase();
+}
+
+// NEW: построить карту name -> Converseid
+function buildEmployeeMap(namesCol, idsCol){
+  const map = new Map();
+  const N = Math.max(namesCol.length, idsCol.length);
+  for(let i=0;i<N;i++){
+    const name = (namesCol[i]?.[0] || "").trim();
+    const id   = (idsCol[i]?.[0] || "").trim();
+    if(name && id) map.set(normalizeName(name), id);
+  }
+  return map;
+}
+
+// NEW: вернуть HTML со ссылкой на инбокс или просто имя
+function inboxLinkHTML(name){
+  const id = empMap.get(normalizeName(name));
+  if(!id) return name;
+  const url = `https://ops.wolt.com/support/converse/users/conversations?assigneeIds=${encodeURIComponent(id)}`;
+  return `<a href="${url}" target="_blank" rel="noopener">${name}</a>`;
+}
 
 function render(data){
-  const [act, pre, aw, x2, z2, ab2, ad2, x5, z5, shifts] = data.valueRanges.map(v => v.values || []);
+  const [
+    act, pre, aw, x2, z2, ab2, ad2, x5, z5,
+    empNames, empIds,                                  // NEW
+    shifts
+  ] = data.valueRanges.map(v => v.values || []);
+
+  // NEW: обновить карту сотрудников
+  empMap = buildEmployeeMap(empNames || [], empIds || []);
 
   // KPIs
   document.getElementById("kpi-onshift").textContent = cell(x2?.[0]) || "0";
@@ -293,12 +379,15 @@ function render(data){
   activeTbody.innerHTML = "";
   let activeCount = 0;
   (act || []).forEach(row => {
-    const [name,status,, , duration] = [row[0]||"", row[1]||"", row[2]||"", row[3]||"", row[4]||""];
+    const [name,status,,, duration] = [row[0]||"", row[1]||"", row[2]||"", row[3]||"", row[4]||""];
     if(!name) return;
     activeCount++;
     const tr = document.createElement("tr");
     const stClass = "status " + (status||"").replace(/\s/g,"\\ ");
-    tr.innerHTML = `<td>${name}</td><td class="${stClass}">${status||""}</td><td>${duration||""}</td>`;
+    tr.innerHTML = `
+      <td class="name-cell">${inboxLinkHTML(name)}</td>
+      <td class="${stClass}">${status||""}</td>
+      <td>${duration||""}</td>`;
     activeTbody.appendChild(tr);
   });
   document.getElementById("activeCount").textContent = activeCount;
@@ -308,15 +397,18 @@ function render(data){
   preTbody.innerHTML = "";
   let preCount = 0;
   (pre || []).forEach(row => {
-  const name = row[0] || "";     // H
-  const reason = row[1] || "";   // I
-  const duration = row[4] || ""; // L  ← нужная колонка
-  if(!name) return;
-  const tr = document.createElement("tr");
-  tr.innerHTML = `<td>${name}</td><td>${reason}</td><td>${duration}</td>`;
-  preTbody.appendChild(tr);
-});
-
+    const name = row[0] || "";
+    const reason = row[1] || "";
+    const duration = row[4] || "";
+    if(!name) return;
+    preCount++;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="name-cell">${inboxLinkHTML(name)}</td>
+      <td>${reason}</td>
+      <td>${duration}</td>`;
+    preTbody.appendChild(tr);
+  });
   document.getElementById("preCount").textContent = preCount;
 
   // AWAY
@@ -328,7 +420,10 @@ function render(data){
     if(!name) return;
     awayCount++;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${name}</td><td>${reason||""}</td><td>${left||""}</td>`;
+    tr.innerHTML = `
+      <td class="name-cell">${inboxLinkHTML(name)}</td>
+      <td>${reason||""}</td>
+      <td>${left||""}</td>`;
     awayTbody.appendChild(tr);
   });
   document.getElementById("awayCount").textContent = awayCount;
@@ -338,14 +433,15 @@ function render(data){
     badge: r[0]||"", email: r[1]||"", name: r[2]||"", type: r[3]||"", start: r[4]||"", end: r[5]||""
   })).filter(x => x.badge || x.email || x.name);
 
-  // Re-apply current query after refresh
+  // re-apply searches
   const input = document.getElementById("shiftSearch");
-  shiftQuery = input.value; // keep whatever user sees
+  shiftQuery = input.value;
   if(shiftQuery && shiftQuery.trim()){
     renderShiftsTable(filterShiftsArray(shiftQuery));
   }else{
     renderShiftsTable(cachedShifts);
   }
+  applyGlobalSearch(globalQuery);
 
   const dt = new Date();
   document.getElementById("lastUpdated").textContent = "Updates every 15s. Last updated: " + dt.toLocaleTimeString();
@@ -374,6 +470,54 @@ function filterShiftsArray(query){
 function filterShifts(query){
   renderShiftsTable(filterShiftsArray(query));
 }
+function clearHighlights(){
+  HIGHLIGHT_CLASSES.forEach(cls => {
+    document.querySelectorAll("tr."+cls).forEach(tr => tr.classList.remove(cls));
+  });
+}
+
+function boldMatch(text, q){
+  if(!q) return text;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if(i === -1) return text;
+  return text.substring(0,i) + "<b>" + text.substring(i, i+q.length) + "</b>" + text.substring(i+q.length);
+}
+
+function applyGlobalSearch(q){
+  globalQuery = (q||"").trim();
+  clearHighlights();
+  if(!globalQuery) return;
+
+  // Active
+  document.querySelectorAll("#tbl-active tbody tr").forEach(tr => {
+    const nameCell = tr.children[0];
+    const nameTxt = nameCell.textContent || "";
+    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){
+      tr.classList.add("match-active");
+      nameCell.innerHTML = boldMatch(nameTxt, globalQuery);
+    }
+  });
+
+  // Pre-Away
+  document.querySelectorAll("#tbl-pre tbody tr").forEach(tr => {
+    const nameCell = tr.children[0];
+    const nameTxt = nameCell.textContent || "";
+    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){
+      tr.classList.add("match-pre");
+      nameCell.innerHTML = boldMatch(nameTxt, globalQuery);
+    }
+  });
+
+  // Away
+  document.querySelectorAll("#tbl-away tbody tr").forEach(tr => {
+    const nameCell = tr.children[0];
+    const nameTxt = nameCell.textContent || "";
+    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){
+      tr.classList.add("match-away");
+      nameCell.innerHTML = boldMatch(nameTxt, globalQuery);
+    }
+  });
+}
 
 async function tick(){
   try{
@@ -394,7 +538,39 @@ document.getElementById("btnShifts").addEventListener("click", () => dlg.classLi
 document.getElementById("closeShifts").addEventListener("click", () => dlg.classList.remove("show"));
 dlg.addEventListener("click", (e)=>{ if(e.target===dlg) dlg.classList.remove("show"); });
 
-// Preserve and apply search input live
+// Collapsible search
+const searchWrap = document.getElementById('searchWrap');
+const globalSearchInput = document.getElementById('globalSearch');
+
+searchWrap.addEventListener('click', (e)=>{
+  if(!searchWrap.classList.contains('open')){
+    searchWrap.classList.add('open');
+    setTimeout(()=> globalSearchInput.focus(), 50);
+  }
+  e.stopPropagation();
+});
+
+document.addEventListener('click', ()=>{
+  if(globalQuery) return;
+  searchWrap.classList.remove('open');
+});
+
+let gsTimer = null;
+globalSearchInput.addEventListener('input', e=>{
+  const v = e.target.value;
+  if(gsTimer) clearTimeout(gsTimer);
+  gsTimer = setTimeout(()=> applyGlobalSearch(v), 120);
+});
+
+globalSearchInput.addEventListener('keydown', e=>{
+  if(e.key === 'Escape'){
+    globalSearchInput.value = "";
+    globalQuery = "";
+    clearHighlights();
+    searchWrap.classList.remove('open');
+  }
+});
+
 const searchInput = document.getElementById("shiftSearch");
 searchInput.addEventListener("input", (e)=> {
   shiftQuery = e.target.value;
