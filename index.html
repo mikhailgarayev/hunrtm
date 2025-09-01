@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RTM Live Dashboard</title>
+<style>
+  :root{
+    --bg:#0b0f19;
+    --card:#121829;
+    --muted:#8b93a7;
+    --accent:#4f8cff;
+    --good:#34d399;
+    --warn:#fbbf24;
+    --bad:#f87171;
+    --ring: rgba(79,140,255,.35);
+    --overlay: rgba(3,8,23,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+
+  /* ------ FIXED BACKGROUND (no seams) ------ */
+  body{
+    margin:0;
+    font: 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+    color:#e8eefc;
+    background: var(--bg);
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before{
+    content:"";
+    position: fixed;
+    inset:-20% -20% -20% -20%; /* canvas larger than viewport */
+    pointer-events:none;
+    z-index:-1;
+    background:
+      radial-gradient(70vw 70vw at -12% -12%,
+        rgba(22,33,62,.55) 0%,
+        rgba(22,33,62,.35) 40%,
+        rgba(22,33,62,.12) 65%,
+        rgba(22,33,62,0) 80%),
+      radial-gradient(85vw 85vw at 112% -6%,
+        rgba(14,27,52,.45) 0%,
+        rgba(14,27,52,.22) 55%,
+        rgba(14,27,52,0) 75%);
+    background-repeat:no-repeat;
+    /* uncomment if на некоторых дисплеях заметны полосы:
+    filter: blur(1px);
+    */
+  }
+  @media (min-width: 1800px){
+    body::before{
+      background:
+        radial-gradient(80vw 80vw at -12% -12%,
+          rgba(22,33,62,.55) 0%,
+          rgba(22,33,62,.35) 40%,
+          rgba(22,33,62,.12) 66%,
+          rgba(22,33,62,0) 82%),
+        radial-gradient(95vw 95vw at 112% -6%,
+          rgba(14,27,52,.45) 0%,
+          rgba(14,27,52,.22) 56%,
+          rgba(14,27,52,0) 76%);
+    }
+  }
+  /* ---------------------------------------- */
+
+  .wrap{max-width:1200px;margin:24px auto;padding:0 16px 64px}
+  header{display:grid;gap:16px;grid-template-columns: repeat(4, minmax(0,1fr));align-items:stretch;margin-bottom:20px}
+  .kpi{position:relative;padding:16px 18px;border-radius:16px;background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));backdrop-filter: blur(6px);border:1px solid rgba(255,255,255,.08);box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px var(--ring) inset;display:grid;align-content:center;min-height:110px}
+  .kpi h3{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+  .kpi .val{font-size:40px;font-weight:800;letter-spacing:1px}
+  .kpi.small .val{font-size:14px; font-weight:600; white-space:pre-wrap}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;font-size:13px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);color:#d6dcf5;cursor:default}
+  .btn{cursor:pointer;transition:.2s transform ease}
+  .btn:hover{transform:translateY(-1px)}
+  .last-updated{justify-self:end}
+  .grid{display:grid;gap:18px;grid-template-columns: 1fr}
+  @media (min-width: 1000px){.grid{grid-template-columns: repeat(3, 1fr)}}
+  .card{background: var(--card);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow: 0 12px 38px rgba(0,0,0,.35);overflow:hidden}
+  .card header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0));margin:0}
+  .card header h2{margin:0; font-size:16px; font-weight:700; letter-spacing:.2px}
+  .badge{font-size:12px; padding:2px 8px; border-radius:8px; background:rgba(255,255,255,.06); color:var(--muted); border:1px solid rgba(255,255,255,.08)}
+  table{width:100%; border-collapse:collapse}
+  th,td{padding:10px 12px; text-align:left; border-bottom:1px dashed rgba(255,255,255,.08)}
+  th{font-size:12px; text-transform:uppercase; letter-spacing:.3px; color:var(--muted)}
+  tbody tr:hover{background:rgba(255,255,255,.03)}
+  .status{font-weight:600}
+  .status.On\ shift{color:var(--good)}
+  .status.Off\ shift{color:var(--muted)}
+  .status.Away{color:var(--bad)}
+  .status.Pre-Away{color:var(--warn)}
+  .footer-note{color:var(--muted); font-size:12px; padding:10px 14px}
+  .blink{animation: pulse 1.5s infinite}
+  @keyframes pulse {0%{opacity:1} 50%{opacity:.6} 100%{opacity:1}}
+  .flex{display:flex; align-items:center; gap:8px}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:var(--overlay);backdrop-filter: blur(4px);opacity:0;pointer-events:none;transition: .2s opacity ease}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .modal{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    max-width: 980px;
+    width: 92%;
+    background: var(--card);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:16px;
+    opacity:0;
+    transition: .25s all ease;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55)
+  }
+  .overlay.show .modal{transform: translate(-50%, -50%) scale(1); opacity:1}
+  .modal header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .modal h3{margin:0;font-size:18px}
+  .modal .controls{display:flex;gap:10px;align-items:center}
+  .modal .search{min-width:280px;padding:10px 12px;border-radius:12px;background:#0e1424;border:1px solid rgba(255,255,255,.12);color:#e8eefc;outline:none}
+  .modal .close{border:none;background:transparent;color:#cbd3ea;font-size:22px;cursor:pointer}
+  .modal .body{max-height:70vh;overflow:auto}
+  .modal table thead th{position:sticky;top:0;background:rgba(18,24,41,.98);backdrop-filter: blur(6px)}
+  .hint{font-size:12px;color:var(--muted);padding:8px 16px 0}
+
+  .corner-gif {
+    position: fixed;
+    top: 1px;
+    left: 40px;
+    width: 80px;
+    height: auto;
+    z-index: 1000;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <img src="https://media.tenor.com/dRHmcsSmZaYAAAAj/wolt-delivery.gif" 
+       alt="Wolt delivery"
+       class="corner-gif">
+
+  <div class="wrap">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
+      <div class="flex">
+        <div class="pill">Support Monitoring Dashboard - Hungary</div>
+        <div class="pill btn" id="btnShifts">Today’s shifts</div>
+        <div class="pill btn" id="btnStats">Statistics</div>
+        <div class="pill btn" id="btnStats">Search</div>
+      </div>
+      <div class="pill last-updated" id="lastUpdated">—</div>
+    </div>
+
+    <header>
+      <div class="kpi">
+        <h3>On shift now</h3>
+        <div class="val" id="kpi-onshift">—</div>
+      </div>
+      <div class="kpi">
+        <h3>Should be</h3>
+        <div class="val" id="kpi-shouldbe">—</div>
+      </div>
+      <div class="kpi">
+        <h3>Pre-Away</h3>
+        <div class="val" id="kpi-preaway">—</div>
+      </div>
+      <div class="kpi">
+        <h3>Away</h3>
+        <div class="val" id="kpi-away">—</div>
+      </div>
+
+      <div class="kpi small" style="grid-column: span 2">
+        <h3>Will not attend the shift</h3>
+        <div class="val" id="kpi-wnats">—</div>
+      </div>
+      <div class="kpi small" style="grid-column: span 2">
+        <h3>Not here</h3>
+        <div class="val" id="kpi-nothere">—</div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <header><h2>Active teammates</h2><span class="badge" id="activeCount">0</span></header>
+        <div class="table-wrap">
+          <table id="tbl-active">
+            <thead><tr><th>Teammate</th><th>Status</th><th>Duration</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="footer-note">Source: <b>RTM</b> sheet, columns A:E</div>
+      </div>
+
+      <div class="card">
+        <header><h2>Pre-Away teammates</h2><span class="badge" id="preCount">0</span></header>
+        <div class="table-wrap">
+          <table id="tbl-pre">
+            <thead><tr><th>Teammate</th><th>Reason</th><th>Duration</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="footer-note">Source: <b>RTM</b> sheet, columns H:M</div>
+      </div>
+
+      <div class="card">
+        <header><h2>Away teammates</h2><span class="badge" id="awayCount">0</span></header>
+        <div class="table-wrap">
+          <table id="tbl-away">
+            <thead><tr><th>Teammate</th><th>Reason</th><th>Time left</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="footer-note">Source: <b>RTM</b> sheet, columns P:V</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal -->
+  <div class="overlay" id="dlgShifts">
+    <div class="modal">
+      <header>
+        <h3>Today’s shifts</h3>
+        <div class="controls">
+          <input id="shiftSearch" class="search" type="search" placeholder="Search by name, email or badge…" />
+          <button title="Close" class="close" id="closeShifts">✕</button>
+        </div>
+      </header>
+      <div class="hint">Source: <b>Current Shift</b> sheet (A:F)</div>
+      <div class="body">
+        <table id="tbl-shifts">
+          <thead>
+            <tr>
+              <th>Badge no.</th>
+              <th>Employee email</th>
+              <th>Employee name</th>
+              <th>Shift type</th>
+              <th>Start</th>
+              <th>End</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+// === CONFIG ===
+const SHEET_ID = "12gcER4PN-gE3sAOz5pj_ihT-cdmqA6XhSn2wCb-6ykk";
+const API_KEY  = "AIzaSyCfTHMy3fauwqbopmDRiD5siI6hH4Fmn38"; // <- put your key here
+const SHEET    = "RTM";
+const SHIFT_SHEET = "Current Shift";
+const REFRESH_MS = 15000;
+
+// Ranges for the main dashboard + shifts
+const ranges = [
+  `${SHEET}!A2:E`,
+  `${SHEET}!H2:M`,
+  `${SHEET}!P2:V`,
+  `${SHEET}!X2`,
+  `${SHEET}!Z2`,
+  `${SHEET}!AB2`,
+  `${SHEET}!AD2`,
+  `${SHEET}!X5`,
+  `${SHEET}!Z5`,
+  `${SHIFT_SHEET}!A2:F` // today's shifts
+];
+
+let cachedShifts = []; // keep for searching
+let shiftQuery = "";   // preserve user query across refreshes
+
+async function fetchRanges(){
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?` +
+    ranges.map(r => "ranges=" + encodeURIComponent(r)).join("&") + `&key=${API_KEY}`;
+  const res = await fetch(url);
+  if(!res.ok){ const t = await res.text(); throw new Error("Load error: " + res.status + " " + t); }
+  return res.json();
+}
+
+function cell(v){ return (Array.isArray(v) && v.length && v[0]!==undefined) ? v[0] : (typeof v==="string"?v:""); }
+
+function render(data){
+  const [act, pre, aw, x2, z2, ab2, ad2, x5, z5, shifts] = data.valueRanges.map(v => v.values || []);
+
+  // KPIs
+  document.getElementById("kpi-onshift").textContent = cell(x2?.[0]) || "0";
+  document.getElementById("kpi-shouldbe").textContent = cell(z2?.[0]) || "0";
+  document.getElementById("kpi-preaway").textContent = cell(ab2?.[0]) || "0";
+  document.getElementById("kpi-away").textContent = cell(ad2?.[0]) || "0";
+  document.getElementById("kpi-wnats").textContent = (cell(x5?.[0]) || "—");
+  document.getElementById("kpi-nothere").textContent = (cell(z5?.[0]) || "—");
+
+  // ACTIVE
+  const activeTbody = document.querySelector("#tbl-active tbody");
+  activeTbody.innerHTML = "";
+  let activeCount = 0;
+  (act || []).forEach(row => {
+    const [name,status,, , duration] = [row[0]||"", row[1]||"", row[2]||"", row[3]||"", row[4]||""];
+    if(!name) return;
+    activeCount++;
+    const tr = document.createElement("tr");
+    const stClass = "status " + (status||"").replace(/\s/g,"\\ ");
+    tr.innerHTML = `<td>${name}</td><td class="${stClass}">${status||""}</td><td>${duration||""}</td>`;
+    activeTbody.appendChild(tr);
+  });
+  document.getElementById("activeCount").textContent = activeCount;
+
+  // PRE-AWAY
+  const preTbody = document.querySelector("#tbl-pre tbody");
+  preTbody.innerHTML = "";
+  let preCount = 0;
+  (pre || []).forEach(row => {
+  const name = row[0] || "";     // H
+  const reason = row[1] || "";   // I
+  const duration = row[4] || ""; // L  ← нужная колонка
+  if(!name) return;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${name}</td><td>${reason}</td><td>${duration}</td>`;
+  preTbody.appendChild(tr);
+});
+
+  document.getElementById("preCount").textContent = preCount;
+
+  // AWAY
+  const awayTbody = document.querySelector("#tbl-away tbody");
+  awayTbody.innerHTML = "";
+  let awayCount = 0;
+  (aw || []).forEach(row => {
+    const [name, reason,,,,, left] = [row[0]||"", row[1]||"", row[2]||"", row[3]||"", row[4]||"", row[5]||"", row[6]||""];
+    if(!name) return;
+    awayCount++;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${name}</td><td>${reason||""}</td><td>${left||""}</td>`;
+    awayTbody.appendChild(tr);
+  });
+  document.getElementById("awayCount").textContent = awayCount;
+
+  // SHIFTS
+  cachedShifts = (shifts || []).map(r => ({
+    badge: r[0]||"", email: r[1]||"", name: r[2]||"", type: r[3]||"", start: r[4]||"", end: r[5]||""
+  })).filter(x => x.badge || x.email || x.name);
+
+  // Re-apply current query after refresh
+  const input = document.getElementById("shiftSearch");
+  shiftQuery = input.value; // keep whatever user sees
+  if(shiftQuery && shiftQuery.trim()){
+    renderShiftsTable(filterShiftsArray(shiftQuery));
+  }else{
+    renderShiftsTable(cachedShifts);
+  }
+
+  const dt = new Date();
+  document.getElementById("lastUpdated").textContent = "Updates every 15s. Last updated: " + dt.toLocaleTimeString();
+}
+
+function renderShiftsTable(rows){
+  const tb = document.querySelector("#tbl-shifts tbody");
+  tb.innerHTML = "";
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.badge}</td><td>${r.email}</td><td>${r.name}</td><td>${r.type}</td><td>${r.start}</td><td>${r.end}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function filterShiftsArray(query){
+  const q = query.trim().toLowerCase();
+  if(!q) return cachedShifts.slice();
+  return cachedShifts.filter(r =>
+    r.name.toLowerCase().includes(q) ||
+    r.email.toLowerCase().includes(q) ||
+    String(r.badge).toLowerCase().includes(q)
+  );
+}
+
+function filterShifts(query){
+  renderShiftsTable(filterShiftsArray(query));
+}
+
+async function tick(){
+  try{
+    const json = await fetchRanges();
+    render(json);
+  }catch(err){
+    console.error(err);
+    document.getElementById("lastUpdated").textContent = "Load failed — check access/API key";
+  }
+}
+
+tick();
+setInterval(tick, REFRESH_MS);
+
+// Modal wiring
+const dlg = document.getElementById("dlgShifts");
+document.getElementById("btnShifts").addEventListener("click", () => dlg.classList.add("show"));
+document.getElementById("closeShifts").addEventListener("click", () => dlg.classList.remove("show"));
+dlg.addEventListener("click", (e)=>{ if(e.target===dlg) dlg.classList.remove("show"); });
+
+// Preserve and apply search input live
+const searchInput = document.getElementById("shiftSearch");
+searchInput.addEventListener("input", (e)=> {
+  shiftQuery = e.target.value;
+  filterShifts(shiftQuery);
+});
+</script>
+</body>
+</html>
