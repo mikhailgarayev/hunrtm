@@ -21,7 +21,7 @@
 
   body{
     margin:0;
-    font: 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+    font: 16px/1.5 system-ui,-apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
     color:#e8eefc;
     background: var(--bg);
     position: relative;
@@ -29,49 +29,63 @@
   }
   body::before{
     content:"";
-    position: fixed;
-    inset:-20% -20% -20% -20%;
-    pointer-events:none;
-    z-index:-1;
+    position: fixed; inset:-20% -20% -20% -20%;
+    pointer-events:none; z-index:-1;
     background:
-      radial-gradient(70vw 70vw at -12% -12%,
-        rgba(22,33,62,.55) 0%,
-        rgba(22,33,62,.35) 40%,
-        rgba(22,33,62,.12) 65%,
-        rgba(22,33,62,0) 80%),
-      radial-gradient(85vw 85vw at 112% -6%,
-        rgba(14,27,52,.45) 0%,
-        rgba(14,27,52,.22) 55%,
-        rgba(14,27,52,0) 75%);
+      radial-gradient(70vw 70vw at -12% -12%, rgba(22,33,62,.55) 0%, rgba(22,33,62,.35) 40%, rgba(22,33,62,.12) 65%, rgba(22,33,62,0) 80%),
+      radial-gradient(85vw 85vw at 112% -6%, rgba(14,27,52,.45) 0%, rgba(14,27,52,.22) 55%, rgba(14,27,52,0) 75%);
     background-repeat:no-repeat;
   }
   @media (min-width: 1800px){
     body::before{
       background:
-        radial-gradient(80vw 80vw at -12% -12%,
-          rgba(22,33,62,.55) 0%,
-          rgba(22,33,62,.35) 40%,
-          rgba(22,33,62,.12) 66%,
-          rgba(22,33,62,0) 82%),
-        radial-gradient(95vw 95vw at 112% -6%,
-          rgba(14,27,52,.45) 0%,
-          rgba(14,27,52,.22) 56%,
-          rgba(14,27,52,0) 76%);
+        radial-gradient(80vw 80vw at -12% -12%, rgba(22,33,62,.55) 0%, rgba(22,33,62,.35) 40%, rgba(22,33,62,.12) 66%, rgba(22,33,62,0) 82%),
+        radial-gradient(95vw 95vw at 112% -6%, rgba(14,27,52,.45) 0%, rgba(14,27,52,.22) 56%, rgba(14,27,52,0) 76%);
     }
   }
 
-  .wrap{max-width:1200px;margin:24px auto;padding:0 16px 64px}
+  .wrap{ max-width: 1600px; margin:24px auto; padding:0 16px 64px; }
+
   header{display:grid;gap:16px;grid-template-columns: repeat(4, minmax(0,1fr));align-items:stretch;margin-bottom:20px}
+
   .kpi{position:relative;padding:16px 18px;border-radius:16px;background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));backdrop-filter: blur(6px);border:1px solid rgba(255,255,255,.08);box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px var(--ring) inset;display:grid;align-content:center;min-height:110px}
   .kpi h3{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
   .kpi .val{font-size:40px;font-weight:800;letter-spacing:1px}
   .kpi.small .val{font-size:14px; font-weight:600; white-space:pre-wrap}
+
   .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;font-size:13px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);color:#d6dcf5;cursor:default}
   .btn{cursor:pointer;transition:.2s transform ease}
   .btn:hover{transform:translateY(-1px)}
   .last-updated{justify-self:end}
+
   .grid{display:grid;gap:18px;grid-template-columns: 1fr}
   @media (min-width: 1000px){.grid{grid-template-columns: repeat(3, 1fr)}}
+  /* UPCOMING: 4 колонки на широких; боковые карточки фиксируем в 4-й колонке */
+  @media (min-width:1300px){
+    .grid{
+      /* 3 контентные колонки + ШИРОКАЯ правая */
+      grid-template-columns: 1fr 1fr 1fr 2.1fr; /* сделай 2.3fr, если нужно ещё шире */
+      align-items: start;
+      grid-auto-flow: row; /* обычная укладка */
+    }
+
+    /* новая правая колонка */
+    .side-col{
+      grid-column: 4;             /* всегда в 4-й колонке */
+      display: flex;              /* вертикальный стек внутри */
+      flex-direction: column;
+      gap: 18px;                  /* расстояние между карточками */
+      align-self: start;          /* прилипает к верху строки */
+      /* Опционально, чтобы правая колонка была видна при скролле: */
+      /* position: sticky; top: 0; */
+    }
+
+    /* чтобы правая колонка использовала всю ширину своего столбца */
+    .side-col .card{ width: 100%; }
+  }
+
+
+
   .card{background: var(--card);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow: 0 12px 38px rgba(0,0,0,.35);overflow:hidden}
   .card header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0));margin:0}
   .card header h2{margin:0; font-size:16px; font-weight:700; letter-spacing:.2px}
@@ -86,6 +100,7 @@
   .status.Away{color:var(--bad)}
   .status.Pre-Away{color:var(--warn)}
   .footer-note{color:var(--muted); font-size:12px; padding:10px 14px}
+
   .blink{animation: pulse 1.5s infinite}
   @keyframes pulse {0%{opacity:1} 50%{opacity:.6} 100%{opacity:1}}
   .flex{display:flex; align-items:center; gap:8px}
@@ -94,18 +109,9 @@
   .overlay{position:fixed;inset:0;background:var(--overlay);backdrop-filter: blur(4px);opacity:0;pointer-events:none;transition: .2s opacity ease}
   .overlay.show{opacity:1;pointer-events:auto}
   .modal{
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.95);
-    max-width: 980px;
-    width: 92%;
-    background: var(--card);
-    border:1px solid rgba(255,255,255,.12);
-    border-radius:16px;
-    opacity:0;
-    transition: .25s all ease;
-    box-shadow: 0 20px 60px rgba(0,0,0,.55)
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95);
+    max-width: 980px; width: 92%;
+    background: var(--card); border:1px solid rgba(255,255,255,.12); border-radius:16px; opacity:0; transition: .25s all ease; box-shadow: 0 20px 60px rgba(0,0,0,.55)
   }
   .overlay.show .modal{transform: translate(-50%, -50%) scale(1); opacity:1}
   .modal header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
@@ -117,122 +123,102 @@
   .modal table thead th{position:sticky;top:0;background:rgba(18,24,41,.98);backdrop-filter: blur(6px)}
   .hint{font-size:12px;color:var(--muted);padding:8px 16px 0}
 
-  .corner-gif {
-    position: fixed;
-    top: 1px;
-    left: 40px;
-    width: 80px;
-    height: auto;
-    z-index: 1000;
-    pointer-events: none;
-  }
+  .corner-gif {position: fixed; top: 1px; left: 40px; width: 80px; height: auto; z-index: 1000; pointer-events: none;}
 
-  .search-wrap{position: relative;display: flex;align-items: center;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);color:#d6dcf5;border-radius:999px;height:40px;padding:0 10px;cursor:pointer;transition:.25s all ease;min-width: 40px;}
-  .search-wrap svg{position: absolute;left: 50%;top: 50%;transform: translate(-50%,-50%);width:16px; height:16px;pointer-events: none;}
-  .search-wrap input{border:none; outline:none; background:transparent; color:#e8eefc; font:inherit;width:0; opacity:0;position: absolute;right: 12px;transition:.25s width ease, .2s opacity ease;}
+  .search-wrap{position: relative; display:flex; align-items:center; border:1px solid rgba(255,255,255,.09); background:rgba(255,255,255,.04); color:#d6dcf5; border-radius:999px; height:40px; padding:0 10px; cursor:pointer; transition:.25s all ease; min-width: 40px;}
+  .search-wrap svg{position: absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:16px; height:16px; pointer-events:none;}
+  .search-wrap input{border:none; outline:none; background:transparent; color:#e8eefc; font:inherit; width:0; opacity:0; position:absolute; right:12px; transition:.25s width ease, .2s opacity ease;}
   .search-wrap.open{padding:0 12px;}
-  .search-wrap.open svg{position: static;transform: none;margin-right: 8px;}
-  .search-wrap.open input{position: static;width: 180px;opacity: 1;}
+  .search-wrap.open svg{position: static; transform:none; margin-right:8px;}
+  .search-wrap.open input{position: static; width: 180px; opacity:1;}
 
   tr.match-active   { background: rgba(52,211,153,.15) !important; box-shadow: inset 0 0 0 1px rgba(52,211,153,.35); }
   tr.match-pre      { background: rgba(251,191,36,.15) !important; box-shadow: inset 0 0 0 1px rgba(251,191,36,.35); }
   tr.match-away     { background: rgba(248,113,113,.15) !important; box-shadow: inset 0 0 0 1px rgba(248,113,113,.35); }
-  tr.match-active td b,
-  tr.match-pre td b,
-  tr.match-away td b { font-weight:800 }
+  tr.match-active td b, tr.match-pre td b, tr.match-away td b { font-weight:800 }
 
-  /* NEW: ссылки в ячейках имён выглядят как текст */
-  td.name-cell a{
-    color:#e8eefc;
-    text-decoration:none;
-    border-bottom:1px dotted rgba(255,255,255,.28);
-  }
+  /* ссылки в ячейках имён */
+  td.name-cell a{ color:#e8eefc; text-decoration:none; border-bottom:1px dotted rgba(255,255,255,.28); }
   td.name-cell a:hover{ color: var(--accent); border-bottom-color: var(--accent); }
-  /* перекраска двух конкретных кнопок */
-  #btnShifts, #btnStats{
-  border-color: rgba(79,140,255,.45); /* синий бордер */
-  color: #e9f1ff;                     /* текст */
-}
-#btnShifts:hover, #btnStats:hover{
-  background: rgba(79,140,255,.28);
-  box-shadow: 0 0 0 2px var(--ring) inset;
-}
-.support-link{
-    border-color: rgba(79,140,255,.45); /* синий бордер */
-  text-decoration:none;
-  cursor:pointer;
-}
-.support-link:hover{
-  background:rgba(79,140,255,.25); /* подсветка при наведении */
-  border-color:var(--accent);
-  color:#fff;
-}
+
+  /* кнопки */
+  #btnShifts, #btnStats{ border-color: rgba(79,140,255,.45); color:#e9f1ff; }
+  #btnShifts:hover, #btnStats:hover{ background: rgba(79,140,255,.28); box-shadow: 0 0 0 2px var(--ring) inset; }
+  .support-link{ border-color: rgba(79,140,255,.45); text-decoration:none; cursor:pointer; }
+  .support-link:hover{ background:rgba(79,140,255,.25); border-color:var(--accent); color:#fff; }
+  
+  /* KPI themes */
+  .kpi--active{ background:linear-gradient(180deg, rgba(34,197,94,.18), rgba(34,197,94,.08)); border-color: rgba(34,197,94,.45); box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(34,197,94,.25) inset; }
+  .kpi--should{ background:linear-gradient(180deg, rgba(59,130,246,.18), rgba(59,130,246,.08)); border-color: rgba(59,130,246,.45); box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(59,130,246,.25) inset; }
+  .kpi--pre{ background:linear-gradient(180deg, rgba(245,158,11,.18), rgba(245,158,11,.08)); border-color: rgba(245,158,11,.45); box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(245,158,11,.25) inset; }
+  .kpi--away{ background:linear-gradient(180deg, rgba(239,68,68,.18), rgba(239,68,68,.08)); border-color: rgba(239,68,68,.45); box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(239,68,68,.25) inset; }
+  .kpi--muted{ background:linear-gradient(180deg, rgba(148,163,184,.20), rgba(148,163,184,.08)); border-color: rgba(148,163,184,.45); box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(148,163,184,.22) inset; }
+
+  /* --- collapsible cards --- */
+  .card.collapsible header{
+    display:flex; align-items:center; gap:10px; justify-content:space-between;
+  }
+  .card .head-left{ display:flex; align-items:center; gap:10px; }
+  .card .head-right{ display:flex; align-items:center; gap:10px; }
+
+  .card .toggle{
+    width:28px; height:28px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:8px; border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.04); color:#cfd6f3; cursor:pointer;
+    transition:.2s transform ease, .2s background ease;
+  }
+  .card .toggle:hover{ background:rgba(255,255,255,.08); }
+  .card .toggle svg{ width:14px; height:14px; transition:.2s transform ease; }
+
+  .collapsible-body{
+    overflow:hidden;
+    transition: max-height .28s ease;
+  }
+
+  /* когда свернуто */
+  .card.is-collapsed .collapsible-body{ max-height: 0 !important; padding-top:0; padding-bottom:0; }
+  .card.is-collapsed .toggle svg{ transform: rotate(-90deg); } /* стрелка вбок */
 
 </style>
 </head>
 <body>
-  <img src="https://media.tenor.com/dRHmcsSmZaYAAAAj/wolt-delivery.gif" 
-       alt="Wolt delivery"
-       class="corner-gif">
+  <img src="https://media.tenor.com/dRHmcsSmZaYAAAAj/wolt-delivery.gif" alt="Wolt delivery" class="corner-gif">
 
   <div class="wrap">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
-    <div class="flex">
-    <div class="pill">Support Monitoring Dashboard - Hungary</div>
-    <div class="pill btn" id="btnShifts">Today’s shifts</div>
-    <div class="pill btn" id="btnStats">Statistics</div>
+      <div class="flex">
+        <div class="pill">Support Monitoring Dashboard - Hungary</div>
+        <div class="pill btn" id="btnShifts">Today’s shifts</div>
+        <div class="pill btn" id="btnStats">Statistics</div>
 
-    <div class="search-wrap" id="searchWrap" title="Search teammates">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.2-4.2M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <input id="globalSearch" type="search" placeholder="Search teammate" />
-    </div>
-    </div>
+        <div class="search-wrap" id="searchWrap" title="Search teammates">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.2-4.2M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <input id="globalSearch" type="search" placeholder="Search teammate" />
+        </div>
+      </div>
 
       <div style="display:flex; align-items:center; gap:12px; justify-self:end">
-  <a href="https://app.slack.com/client/E033H7MNDS5/C0999U4TYA0" 
-     target="_blank" 
-     class="pill support-link">Support</a>
-  <div class="pill last-updated" id="lastUpdated">—</div>
-</div>
-
+        <a href="https://app.slack.com/client/E033H7MNDS5/C0999U4TYA0" target="_blank" class="pill support-link">Support</a>
+        <div class="pill last-updated" id="lastUpdated">—</div>
+      </div>
     </div>
 
     <header>
-      <div class="kpi">
-        <h3>On shift now</h3>
-        <div class="val" id="kpi-onshift">—</div>
-      </div>
-      <div class="kpi">
-        <h3>Should be</h3>
-        <div class="val" id="kpi-shouldbe">—</div>
-      </div>
-      <div class="kpi">
-        <h3>Pre-Away</h3>
-        <div class="val" id="kpi-preaway">—</div>
-      </div>
-      <div class="kpi">
-        <h3>Away</h3>
-        <div class="val" id="kpi-away">—</div>
-      </div>
+      <div class="kpi kpi--active"><h3>On shift now</h3><div class="val" id="kpi-onshift">—</div></div>
+      <div class="kpi kpi--should"><h3>Should be</h3><div class="val" id="kpi-shouldbe">—</div></div>
+      <div class="kpi kpi--pre"><h3>Pre-Away</h3><div class="val" id="kpi-preaway">—</div></div>
+      <div class="kpi kpi--away"><h3>Away</h3><div class="val" id="kpi-away">—</div></div>
 
-      <div class="kpi small" style="grid-column: span 2">
-        <h3>Will not attend the shift</h3>
-        <div class="val" id="kpi-wnats">—</div>
-      </div>
-      <div class="kpi small" style="grid-column: span 2">
-        <h3>Not here</h3>
-        <div class="val" id="kpi-nothere">—</div>
-      </div>
+      <div class="kpi small" style="grid-column: span 2"><h3>Will not attend the shift</h3><div class="val" id="kpi-wnats">—</div></div>
+      <div class="kpi small" style="grid-column: span 2"><h3>Not here</h3><div class="val" id="kpi-nothere">—</div></div>
     </header>
 
     <section class="grid">
       <div class="card">
         <header><h2>Active teammates</h2><span class="badge" id="activeCount">0</span></header>
         <div class="table-wrap">
-          <table id="tbl-active">
-            <thead><tr><th>Teammate</th><th>Status</th><th>Duration</th></tr></thead>
-            <tbody></tbody>
-          </table>
+          <table id="tbl-active"><thead><tr><th>Teammate</th><th>Status</th><th>Duration</th></tr></thead><tbody></tbody></table>
         </div>
         <div class="footer-note">Source: <b>RTM</b> sheet, columns A:E</div>
       </div>
@@ -240,10 +226,7 @@
       <div class="card">
         <header><h2>Pre-Away teammates</h2><span class="badge" id="preCount">0</span></header>
         <div class="table-wrap">
-          <table id="tbl-pre">
-            <thead><tr><th>Teammate</th><th>Reason</th><th>Duration</th></tr></thead>
-            <tbody></tbody>
-          </table>
+          <table id="tbl-pre"><thead><tr><th>Teammate</th><th>Reason</th><th>Duration</th></tr></thead><tbody></tbody></table>
         </div>
         <div class="footer-note">Source: <b>RTM</b> sheet, columns H:M</div>
       </div>
@@ -251,17 +234,68 @@
       <div class="card">
         <header><h2>Away teammates</h2><span class="badge" id="awayCount">0</span></header>
         <div class="table-wrap">
-          <table id="tbl-away">
-            <thead><tr><th>Teammate</th><th>Reason</th><th>Time left</th></tr></thead>
-            <tbody></tbody>
-          </table>
+          <table id="tbl-away"><thead><tr><th>Teammate</th><th>Reason</th><th>Time left</th></tr></thead><tbody></tbody></table>
         </div>
         <div class="footer-note">Source: <b>RTM</b> sheet, columns P:V</div>
+      </div>
+
+      <div class="side-col"> 
+      <!-- Upcoming Shifts -->
+      <div class="card collapsible" id="card-upcoming-starts">
+        <header>
+          <div class="head-left">
+            <h2>Upcoming Shifts (next hour)</h2>
+            <span class="badge" id="upStartCount">0</span>
+          </div>
+          <div class="head-right">
+            <button class="toggle" data-target="card-upcoming-starts" title="Collapse/expand">
+              <!-- caret-down -->
+              <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="collapsible-body">
+          <div class="table-wrap">
+            <table id="tbl-upcoming-starts">
+              <thead><tr><th>Teammate</th><th>Shift type</th><th>Start</th><th>End</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="footer-note">Source: <b>Current Shift</b> sheet, columns A:F</div>
+        </div>
+      </div>
+
+      <!-- Upcoming Shift ends -->
+      <div class="card collapsible" id="card-upcoming-ends">
+        <header>
+          <div class="head-left">
+            <h2>Upcoming Shift ends (next hour)</h2>
+            <span class="badge" id="upEndCount">0</span>
+          </div>
+          <div class="head-right">
+            <button class="toggle" data-target="card-upcoming-ends" title="Collapse/expand">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="collapsible-body">
+          <div class="table-wrap">
+            <table id="tbl-upcoming-ends">
+              <thead><tr><th>Teammate</th><th>Shift type</th><th>Start</th><th>End</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="footer-note">Source: <b>Current Shift</b> sheet, columns A:F</div>
+        </div>
+      </div>
+
       </div>
     </section>
   </div>
 
-  <!-- Modal -->
+  <!-- Shifts modal -->
   <div class="overlay" id="dlgShifts">
     <div class="modal">
       <header>
@@ -274,16 +308,7 @@
       <div class="hint">Source: <b>Current Shift</b> sheet (A:F)</div>
       <div class="body">
         <table id="tbl-shifts">
-          <thead>
-            <tr>
-              <th>Badge no.</th>
-              <th>Employee email</th>
-              <th>Employee name</th>
-              <th>Shift type</th>
-              <th>Start</th>
-              <th>End</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Badge no.</th><th>Employee email</th><th>Employee name</th><th>Shift type</th><th>Start</th><th>End</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -296,7 +321,7 @@ const SHEET_ID = "12gcER4PN-gE3sAOz5pj_ihT-cdmqA6XhSn2wCb-6ykk";
 const API_KEY  = "AIzaSyCfTHMy3fauwqbopmDRiD5siI6hH4Fmn38";
 const SHEET    = "RTM";
 const SHIFT_SHEET = "Current Shift";
-const EMP_SHEET = "Employee list";     // NEW
+const EMP_SHEET = "Employee list";
 const REFRESH_MS = 15000;
 
 // Ranges for the main dashboard + shifts + employee list
@@ -310,14 +335,14 @@ const ranges = [
   `${SHEET}!AD2`,
   `${SHEET}!X5`,
   `${SHEET}!Z5`,
-  `${EMP_SHEET}!C2:C`,              // NEW (names)
-  `${EMP_SHEET}!H2:H`,              // NEW (Converseid)
-  `${SHIFT_SHEET}!A2:F`
+  `${EMP_SHEET}!C2:C`,
+  `${EMP_SHEET}!H2:H`,
+  `${SHIFT_SHEET}!A2:F` // (badge, email, name, type, start, end)
 ];
 
 let cachedShifts = [];
 let shiftQuery = "";
-let empMap = new Map();              // NEW: name -> Converseid
+let empMap = new Map();
 
 async function fetchRanges(){
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?` +
@@ -331,12 +356,7 @@ function cell(v){ return (Array.isArray(v) && v.length && v[0]!==undefined) ? v[
 let globalQuery = "";
 const HIGHLIGHT_CLASSES = ["match-active","match-pre","match-away"];
 
-// NEW: нормализатор имени для сопоставления
-function normalizeName(s){
-  return (s||"").toString().trim().replace(/\s+/g," ").toLowerCase();
-}
-
-// NEW: построить карту name -> Converseid
+function normalizeName(s){ return (s||"").toString().trim().replace(/\s+/g," ").toLowerCase(); }
 function buildEmployeeMap(namesCol, idsCol){
   const map = new Map();
   const N = Math.max(namesCol.length, idsCol.length);
@@ -347,8 +367,6 @@ function buildEmployeeMap(namesCol, idsCol){
   }
   return map;
 }
-
-// NEW: вернуть HTML со ссылкой на инбокс или просто имя
 function inboxLinkHTML(name){
   const id = empMap.get(normalizeName(name));
   if(!id) return name;
@@ -356,14 +374,107 @@ function inboxLinkHTML(name){
   return `<a href="${url}" target="_blank" rel="noopener">${name}</a>`;
 }
 
-function render(data){
-  const [
-    act, pre, aw, x2, z2, ab2, ad2, x5, z5,
-    empNames, empIds,                                  // NEW
-    shifts
-  ] = data.valueRanges.map(v => v.values || []);
+// Заменить существующую parseDateFlexible на эту
+function parseDateFlexible(val){
+  if (val == null) return null;
+  const s = String(val).replace(/\u00A0/g, ' ').trim(); // NBSP → пробел
 
-  // NEW: обновить карту сотрудников
+  // 1) Жёстко поддерживаем "DD/MM/YYYY HH:MM[:SS]" (или с '.' или '-')
+  //    Пример: 02/09/2025 13:00:00
+  const m = s.match(
+    /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+  );
+  if (m) {
+    let day = +m[1], mon = +m[2] - 1, yr = +m[3];
+    if (yr < 100) yr += 2000;
+    const hh = +m[4], mm = +m[5], ss = +(m[6] || 0);
+    return new Date(yr, mon, day, hh, mm, ss); // локальная таймзона (например Europe/Budapest)
+  }
+
+  // 2) Запасной вариант — пусть попробует нативный парсер
+  const d = new Date(s);
+  if (!isNaN(d)) return d;
+
+  // 3) Только время "HH:MM[:SS]" → сегодня
+  const t = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (t) {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), +t[1], +t[2], +(t[3] || 0), 0);
+  }
+
+  return null;
+}
+
+
+function fmtTime(d){
+  if(!(d instanceof Date) || isNaN(d)) return "";
+  return d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+}
+
+// UPCOMING: получить массивы стартующих/заканчивающих в ближайший час
+function computeUpcoming(shifts){
+  const now = new Date();
+  const starting = [];
+  const ending   = [];
+
+  shifts.forEach(r => {
+    const startDt = parseDateFlexible(r.start);
+    const endDt   = parseDateFlexible(r.end);
+
+    if(startDt){
+      const diffMin = (startDt - now) / 60000;
+      if(diffMin >= 0 && diffMin <= 60){
+        starting.push({ name:r.name, type:r.type, start:startDt, end:endDt });
+      }
+    }
+    if(endDt){
+      const diffMin = (endDt - now) / 60000;
+      if(diffMin >= 0 && diffMin <= 60){
+        ending.push({ name:r.name, type:r.type, start:startDt, end:endDt });
+      }
+    }
+  });
+
+  starting.sort((a,b)=> a.start - b.start);
+  ending.sort((a,b)=> a.end - b.end);
+  return { starting, ending };
+}
+
+function renderUpcomingCards(){
+  const { starting, ending } = computeUpcoming(cachedShifts);
+
+  const tbS = document.querySelector("#tbl-upcoming-starts tbody");
+  const tbE = document.querySelector("#tbl-upcoming-ends tbody");
+  tbS.innerHTML = ""; tbE.innerHTML = "";
+
+  if(starting.length === 0){
+    tbS.innerHTML = `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
+  }else{
+    starting.forEach(r=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="name-cell">${inboxLinkHTML(r.name)}</td><td>${r.type||""}</td><td>${fmtTime(r.start)}</td><td>${fmtTime(r.end)}</td>`;
+      tbS.appendChild(tr);
+    });
+  }
+  if(ending.length === 0){
+    tbE.innerHTML = `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
+  }else{
+    ending.forEach(r=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="name-cell">${inboxLinkHTML(r.name)}</td><td>${r.type||""}</td><td>${fmtTime(r.start)}</td><td>${fmtTime(r.end)}</td>`;
+      tbE.appendChild(tr);
+    });
+  }
+
+  document.getElementById("upStartCount").textContent = starting.length;
+  document.getElementById("upEndCount").textContent   = ending.length;
+  refreshUpcomingHeights();
+
+}
+
+function render(data){
+  const [act, pre, aw, x2, z2, ab2, ad2, x5, z5, empNames, empIds, shifts] = data.valueRanges.map(v => v.values || []);
+
   empMap = buildEmployeeMap(empNames || [], empIds || []);
 
   // KPIs
@@ -384,10 +495,7 @@ function render(data){
     activeCount++;
     const tr = document.createElement("tr");
     const stClass = "status " + (status||"").replace(/\s/g,"\\ ");
-    tr.innerHTML = `
-      <td class="name-cell">${inboxLinkHTML(name)}</td>
-      <td class="${stClass}">${status||""}</td>
-      <td>${duration||""}</td>`;
+    tr.innerHTML = `<td class="name-cell">${inboxLinkHTML(name)}</td><td class="${stClass}">${status||""}</td><td>${duration||""}</td>`;
     activeTbody.appendChild(tr);
   });
   document.getElementById("activeCount").textContent = activeCount;
@@ -403,10 +511,7 @@ function render(data){
     if(!name) return;
     preCount++;
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="name-cell">${inboxLinkHTML(name)}</td>
-      <td>${reason}</td>
-      <td>${duration}</td>`;
+    tr.innerHTML = `<td class="name-cell">${inboxLinkHTML(name)}</td><td>${reason}</td><td>${duration}</td>`;
     preTbody.appendChild(tr);
   });
   document.getElementById("preCount").textContent = preCount;
@@ -420,27 +525,25 @@ function render(data){
     if(!name) return;
     awayCount++;
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="name-cell">${inboxLinkHTML(name)}</td>
-      <td>${reason||""}</td>
-      <td>${left||""}</td>`;
+    tr.innerHTML = `<td class="name-cell">${inboxLinkHTML(name)}</td><td>${reason||""}</td><td>${left||""}</td>`;
     awayTbody.appendChild(tr);
   });
   document.getElementById("awayCount").textContent = awayCount;
 
-  // SHIFTS
+  // SHIFTS cache
   cachedShifts = (shifts || []).map(r => ({
     badge: r[0]||"", email: r[1]||"", name: r[2]||"", type: r[3]||"", start: r[4]||"", end: r[5]||""
   })).filter(x => x.badge || x.email || x.name);
 
-  // re-apply searches
+  // Обновляем «предстоящие»
+  renderUpcomingCards();
+
+  // Shifts modal table
   const input = document.getElementById("shiftSearch");
   shiftQuery = input.value;
-  if(shiftQuery && shiftQuery.trim()){
-    renderShiftsTable(filterShiftsArray(shiftQuery));
-  }else{
-    renderShiftsTable(cachedShifts);
-  }
+  renderShiftsTable(shiftQuery?.trim() ? filterShiftsArray(shiftQuery) : cachedShifts);
+
+  // header search подсветка
   applyGlobalSearch(globalQuery);
 
   const dt = new Date();
@@ -467,55 +570,35 @@ function filterShiftsArray(query){
   );
 }
 
-function filterShifts(query){
-  renderShiftsTable(filterShiftsArray(query));
-}
+function filterShifts(query){ renderShiftsTable(filterShiftsArray(query)); }
+
 function clearHighlights(){
   HIGHLIGHT_CLASSES.forEach(cls => {
     document.querySelectorAll("tr."+cls).forEach(tr => tr.classList.remove(cls));
   });
 }
-
 function boldMatch(text, q){
   if(!q) return text;
   const i = text.toLowerCase().indexOf(q.toLowerCase());
   if(i === -1) return text;
   return text.substring(0,i) + "<b>" + text.substring(i, i+q.length) + "</b>" + text.substring(i+q.length);
 }
-
 function applyGlobalSearch(q){
   globalQuery = (q||"").trim();
   clearHighlights();
   if(!globalQuery) return;
 
-  // Active
   document.querySelectorAll("#tbl-active tbody tr").forEach(tr => {
-    const nameCell = tr.children[0];
-    const nameTxt = nameCell.textContent || "";
-    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){
-      tr.classList.add("match-active");
-      nameCell.innerHTML = boldMatch(nameTxt, globalQuery);
-    }
+    const nameCell = tr.children[0]; const nameTxt = nameCell.textContent || "";
+    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){ tr.classList.add("match-active"); nameCell.innerHTML = boldMatch(nameTxt, globalQuery); }
   });
-
-  // Pre-Away
   document.querySelectorAll("#tbl-pre tbody tr").forEach(tr => {
-    const nameCell = tr.children[0];
-    const nameTxt = nameCell.textContent || "";
-    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){
-      tr.classList.add("match-pre");
-      nameCell.innerHTML = boldMatch(nameTxt, globalQuery);
-    }
+    const nameCell = tr.children[0]; const nameTxt = nameCell.textContent || "";
+    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){ tr.classList.add("match-pre"); nameCell.innerHTML = boldMatch(nameTxt, globalQuery); }
   });
-
-  // Away
   document.querySelectorAll("#tbl-away tbody tr").forEach(tr => {
-    const nameCell = tr.children[0];
-    const nameTxt = nameCell.textContent || "";
-    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){
-      tr.classList.add("match-away");
-      nameCell.innerHTML = boldMatch(nameTxt, globalQuery);
-    }
+    const nameCell = tr.children[0]; const nameTxt = nameCell.textContent || "";
+    if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){ tr.classList.add("match-away"); nameCell.innerHTML = boldMatch(nameTxt, globalQuery); }
   });
 }
 
@@ -528,7 +611,6 @@ async function tick(){
     document.getElementById("lastUpdated").textContent = "Load failed — check access/API key";
   }
 }
-
 tick();
 setInterval(tick, REFRESH_MS);
 
@@ -541,41 +623,76 @@ dlg.addEventListener("click", (e)=>{ if(e.target===dlg) dlg.classList.remove("sh
 // Collapsible search
 const searchWrap = document.getElementById('searchWrap');
 const globalSearchInput = document.getElementById('globalSearch');
-
-searchWrap.addEventListener('click', (e)=>{
-  if(!searchWrap.classList.contains('open')){
-    searchWrap.classList.add('open');
-    setTimeout(()=> globalSearchInput.focus(), 50);
-  }
-  e.stopPropagation();
-});
-
-document.addEventListener('click', ()=>{
-  if(globalQuery) return;
-  searchWrap.classList.remove('open');
-});
-
+searchWrap.addEventListener('click', (e)=>{ if(!searchWrap.classList.contains('open')){ searchWrap.classList.add('open'); setTimeout(()=> globalSearchInput.focus(), 50);} e.stopPropagation(); });
+document.addEventListener('click', ()=>{ if(globalQuery) return; searchWrap.classList.remove('open'); });
 let gsTimer = null;
-globalSearchInput.addEventListener('input', e=>{
-  const v = e.target.value;
-  if(gsTimer) clearTimeout(gsTimer);
-  gsTimer = setTimeout(()=> applyGlobalSearch(v), 120);
-});
-
-globalSearchInput.addEventListener('keydown', e=>{
-  if(e.key === 'Escape'){
-    globalSearchInput.value = "";
-    globalQuery = "";
-    clearHighlights();
-    searchWrap.classList.remove('open');
-  }
-});
+globalSearchInput.addEventListener('input', e=>{ const v = e.target.value; if(gsTimer) clearTimeout(gsTimer); gsTimer = setTimeout(()=> applyGlobalSearch(v), 120); });
+globalSearchInput.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ globalSearchInput.value = ""; globalQuery = ""; clearHighlights(); searchWrap.classList.remove('open'); }});
 
 const searchInput = document.getElementById("shiftSearch");
-searchInput.addEventListener("input", (e)=> {
-  shiftQuery = e.target.value;
-  filterShifts(shiftQuery);
-});
+searchInput.addEventListener("input", (e)=> { shiftQuery = e.target.value; filterShifts(shiftQuery); });
+// ---- Collapsible helpers (с сохранением состояния в localStorage) ----
+function setCollapsed(card, collapsed){
+  const body = card.querySelector('.collapsible-body');
+  // сперва выставим max-height для анимации
+  if(!collapsed){
+    // раскрываем
+    body.style.maxHeight = body.scrollHeight + 'px';
+    card.classList.remove('is-collapsed');
+  }else{
+    // сворачиваем
+    body.style.maxHeight = body.scrollHeight + 'px'; // стартовое значение
+    requestAnimationFrame(()=>{ body.style.maxHeight = '0px'; });
+    card.classList.add('is-collapsed');
+  }
+  localStorage.setItem('collapsed:'+card.id, collapsed ? '1' : '0');
+}
+
+// Пересчитать высоту (когда внутри контент поменялся)
+function refreshCollapsible(card){
+  if(card.classList.contains('is-collapsed')) return;
+  const body = card.querySelector('.collapsible-body');
+  body.style.maxHeight = body.scrollHeight + 'px';
+}
+
+// Повесить слушатели на кнопку
+function initCollapsible(cardId){
+  const card = document.getElementById(cardId);
+  if(!card) return;
+  const btn = card.querySelector('.toggle');
+  if(!btn) return;
+
+  // восстановить состояние
+  const saved = localStorage.getItem('collapsed:'+cardId) === '1';
+  if(saved){
+    card.classList.add('is-collapsed');
+    card.querySelector('.collapsible-body').style.maxHeight = '0px';
+  }else{
+    // при первом рендере выставим нужную высоту
+    refreshCollapsible(card);
+  }
+
+  btn.addEventListener('click', ()=>{
+    const willCollapse = !card.classList.contains('is-collapsed');
+    setCollapsed(card, willCollapse);
+  });
+}
+
+// вызывать после наполняем таблицы upcoming
+function refreshUpcomingHeights(){
+  ['card-upcoming-starts','card-upcoming-ends'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) refreshCollapsible(el);
+  });
+}
+
+// запустить инициализацию после загрузки
+initCollapsible('card-upcoming-starts');
+initCollapsible('card-upcoming-ends');
+
+// полезно пересчитать на ресайз
+window.addEventListener('resize', refreshUpcomingHeights);
+
 </script>
 </body>
 </html>
