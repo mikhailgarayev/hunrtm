@@ -319,6 +319,36 @@
           <div class="footer-note">Source: <b>Current Shift</b> sheet, columns A:F</div>
         </div>
       </div>
+      <!-- Agents without scheduled break -->
+<!-- Agents without scheduled break -->
+<div class="card collapsible" id="card-breakless">
+  <header>
+    <div class="head-left">
+      <h2>Teammates on shift without a scheduled break</h2>
+      <span class="badge" id="breaklessCount">0</span>
+    </div>
+    <div class="head-right">
+      <button class="toggle" data-target="card-breakless" title="Collapse/expand">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="collapsible-body">
+    <div class="table-wrap">
+      <table id="tbl-breakless">
+        <thead><tr><th>Teammate</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="footer-note">
+      Source: <b>For dashboard list</b>(A2:A) — doc <code>HUN Break regulation</code>
+    </div>
+  </div>
+</div>
+
 
       </div>
     </section>
@@ -362,7 +392,12 @@ const API_KEY  = "AIzaSyCfTHMy3fauwqbopmDRiD5siI6hH4Fmn38";
 const SHEET    = "RTM";
 const SHIFT_SHEET = "Current Shift";
 const EMP_SHEET = "Employee list";
-const REFRESH_MS = 15000;
+// --- breaks source (другая таблица) ---
+const BREAKLESS_SHEET_ID = "1m4tApcZvlH6dpzekrDqfNoT0YoA3kkGl6hAPwyO_9Oo";
+const BREAKLESS_RANGE = "For dashboard!A2:A";
+
+let REFRESH_MS = 45000; // 45 cек: можно потом подкрутить
+
 
 // Ranges for the main dashboard + shifts + employee list
 const ranges = [
@@ -374,10 +409,7 @@ const ranges = [
   `${SHEET}!AB2`,
   `${SHEET}!AD2`,
   `${SHEET}!X5`,
-  `${SHEET}!Z5`,
-  `${EMP_SHEET}!C2:C`,
-  `${EMP_SHEET}!H2:H`,
-  `${SHIFT_SHEET}!A2:F` // (badge, email, name, type, start, end)
+  `${SHEET}!Z5`
 ];
 
 let cachedShifts = [];
@@ -385,11 +417,43 @@ let shiftQuery = "";
 let empMap = new Map();
 
 async function fetchRanges(){
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?` +
-    ranges.map(r => "ranges=" + encodeURIComponent(r)).join("&") + `&key=${API_KEY}`;
-  const res = await fetch(url);
+  const base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet`;
+  const params = [
+    ...ranges.map(r => "ranges=" + encodeURIComponent(r)),
+    "valueRenderOption=UNFORMATTED_VALUE",     // числа как числа
+    "dateTimeRenderOption=FORMATTED_STRING",   // даты как текст
+    "fields=valueRanges(range,values)",        // только нужное
+    `key=${API_KEY}`
+  ].join("&");
+
+  const res = await fetch(`${base}?${params}`, { cache: "no-store" });
   if(!res.ok){ const t = await res.text(); throw new Error("Load error: " + res.status + " " + t); }
   return res.json();
+}
+async function fetchShiftsForModal(){
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/` +
+              encodeURIComponent(`${SHIFT_SHEET}!A2:F`) +
+              `?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING&fields=values&key=${API_KEY}`;
+  const r = await fetch(url, { cache: 'no-store' });
+  if(!r.ok) throw new Error('Shifts load error: '+r.status);
+  const j = await r.json();
+  return (j.values || []).map(r => ({
+    badge: r[0]||"", email: r[1]||"", name: r[2]||"", type: r[3]||"", start: r[4]||"", end: r[5]||""
+  }));
+}
+
+async function fetchBreakless(){
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${BREAKLESS_SHEET_ID}/values/` +
+              encodeURIComponent(BREAKLESS_RANGE) + `?key=${API_KEY}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if(!res.ok){
+    const t = await res.text();
+    throw new Error("Breakless load error: " + res.status + " " + t);
+  }
+  const json = await res.json();
+  const values = json.values || [];
+  // Берём только непустые имена
+  return values.map(r => (r[0] || "").trim()).filter(Boolean);
 }
 
 function cell(v){ return (Array.isArray(v) && v.length && v[0]!==undefined) ? v[0] : (typeof v==="string"?v:""); }
@@ -407,6 +471,63 @@ function buildEmployeeMap(namesCol, idsCol){
   }
   return map;
 }
+// --- КЭШ КАРТЫ СОТРУДНИКОВ (12 часов) ---
+const EMP_CACHE_KEY = 'empMapCacheV1';
+const EMP_CACHE_TS  = 'empMapCacheV1:ts';
+const EMP_CACHE_TTL = 12 * 60 * 60 * 1000; // 12h
+
+function saveEmpMapToCache(map){
+  try{
+    localStorage.setItem(EMP_CACHE_KEY, JSON.stringify(Array.from(map.entries())));
+    localStorage.setItem(EMP_CACHE_TS, String(Date.now()));
+  }catch(e){ console.warn('Emp cache save failed', e); }
+}
+
+function loadEmpMapFromCache(){
+  try{
+    const ts = +(localStorage.getItem(EMP_CACHE_TS) || 0);
+    if (!ts || (Date.now() - ts) > EMP_CACHE_TTL) return null;
+    const arr = JSON.parse(localStorage.getItem(EMP_CACHE_KEY) || '[]');
+    if (!Array.isArray(arr) || !arr.length) return null;
+    return new Map(arr);
+  }catch(e){
+    return null;
+  }
+}
+
+// грузим 2 колонки из Employee list и строим Map
+async function fetchEmployeeMapFresh(){
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?` +
+    [
+      "ranges=" + encodeURIComponent(`${EMP_SHEET}!C2:C`), // names
+      "ranges=" + encodeURIComponent(`${EMP_SHEET}!H2:H`), // ids
+      "valueRenderOption=UNFORMATTED_VALUE",
+      "fields=valueRanges(values)",
+      `key=${API_KEY}`
+    ].join("&");
+  const r = await fetch(url, { cache: 'no-store' });
+  if(!r.ok) throw new Error('Employee list load error: '+r.status);
+  const j = await r.json();
+  const names = (j.valueRanges?.[0]?.values) || [];
+  const ids   = (j.valueRanges?.[1]?.values) || [];
+  return buildEmployeeMap(names, ids);
+}
+
+// гарантируем, что empMap есть: сначала кэш, при необходимости — сеть
+async function ensureEmpMap(force=false){
+  if(!force){
+    const cached = loadEmpMapFromCache();
+    if(cached){ empMap = cached; return; }
+  }
+  try{
+    const fresh = await fetchEmployeeMapFresh();
+    empMap = fresh;
+    saveEmpMapToCache(fresh);
+  }catch(e){
+    console.error('ensureEmpMap failed', e);
+  }
+}
+
 function inboxLinkHTML(name){
   const id = empMap.get(normalizeName(name));
   if(!id) return name;
@@ -511,11 +632,38 @@ function renderUpcomingCards(){
   refreshUpcomingHeights();
 
 }
+function renderBreakless(names){
+  const tb = document.querySelector("#tbl-breakless tbody");
+  if(!names || names.length === 0){
+    tb.innerHTML = `<tr><td style="color:var(--muted)">—</td></tr>`;
+  }else{
+    tb.innerHTML = names.map(n => `<tr><td class="name-cell">${inboxLinkHTML(n)}</td></tr>`).join("");
+  }
+  document.getElementById("breaklessCount").textContent = String(names.length);
+  const card = document.getElementById('card-breakless');
+  if (card) refreshCollapsible(card);
+
+}
+
+// обновляем не чаще, чем раз в 90 секунд
+let lastBreakFetch = 0;
+async function maybeUpdateBreakless(force=false){
+  const now = Date.now();
+  if (!force && (now - lastBreakFetch) < 90000) return;
+  try{
+    const names = await fetchBreakless();
+    renderBreakless(names);
+    lastBreakFetch = now;
+  }catch(e){ console.error(e); }
+}
+// первый вызов сразу:
+maybeUpdateBreakless(true);
+// дальше раз в 30 сек просто пробуем (функция сама решит, пора ли):
+setInterval(()=> maybeUpdateBreakless(false), 30000);
+
 
 function render(data){
-  const [act, pre, aw, x2, z2, ab2, ad2, x5, z5, empNames, empIds, shifts] = data.valueRanges.map(v => v.values || []);
-
-  empMap = buildEmployeeMap(empNames || [], empIds || []);
+  const [act, pre, aw, x2, z2, ab2, ad2, x5, z5] = data.valueRanges.map(v => v.values || []);
 
   // KPIs
   document.getElementById("kpi-onshift").textContent = cell(x2?.[0]) || "0";
@@ -570,13 +718,6 @@ function render(data){
   });
   document.getElementById("awayCount").textContent = awayCount;
 
-  // SHIFTS cache
-  cachedShifts = (shifts || []).map(r => ({
-    badge: r[0]||"", email: r[1]||"", name: r[2]||"", type: r[3]||"", start: r[4]||"", end: r[5]||""
-  })).filter(x => x.badge || x.email || x.name);
-
-  // Обновляем «предстоящие»
-  renderUpcomingCards();
 
   // Shifts modal table
   const input = document.getElementById("shiftSearch");
@@ -587,7 +728,7 @@ function render(data){
   applyGlobalSearch(globalQuery);
 
   const dt = new Date();
-  document.getElementById("lastUpdated").textContent = "Updates every 15s. Last updated: " + dt.toLocaleTimeString();
+  document.getElementById("lastUpdated").textContent = "Updates every 45s. Last updated: " + dt.toLocaleTimeString();
 }
 
 function renderShiftsTable(rows){
@@ -653,19 +794,75 @@ function applyGlobalSearch(q){
 
 async function tick(){
   try{
-    const json = await fetchRanges();
+    const json = await fetchRanges(); // только основной дашборд
     render(json);
   }catch(err){
     console.error(err);
-    document.getElementById("lastUpdated").textContent = "Load failed — check access/API key";
+    document.getElementById("lastUpdated").textContent =
+      "Load failed — check access/API key";
   }
 }
+
+
 tick();
-setInterval(tick, REFRESH_MS);
+// ---- умная петля опроса с джиттером и паузой в фоне ----
+const JITTER = 0.20; // ±20%
+
+function nextDelay(){
+  const k = 1 + (Math.random()*2 - 1) * JITTER; // 0.8..1.2
+  return Math.max(10000, Math.floor(REFRESH_MS * k));
+}
+
+let tickerId = null;
+async function loop(){
+  try { await tick(); } catch(e){ console.error(e); }
+  tickerId = setTimeout(loop, nextDelay());
+}
+// один раз на старте — не блокируем UI (без await)
+ensureEmpMap(false);
+// Подтянем смены отдельно для карточек "Upcoming …"
+fetchShiftsForModal()
+  .then(arr => { cachedShifts = arr; renderUpcomingCards(); })
+  .catch(console.error);
+
+// Обновлять раз в 5 минут
+setInterval(async () => {
+  try {
+    const arr = await fetchShiftsForModal();
+    cachedShifts = arr;
+    renderUpcomingCards();
+  } catch(e) { console.error(e); }
+}, 5 * 60 * 1000);
+
+// обновляем карту раз в 6 часов «на фоне»
+setInterval(() => ensureEmpMap(true), 6 * 60 * 60 * 1000);
+
+loop();
+
+document.addEventListener('visibilitychange', ()=>{
+  if (document.hidden){
+    if (tickerId) clearTimeout(tickerId);   // не опрашиваем, когда вкладка не видна
+  } else {
+    loop();                                  // возобновляем
+  }
+});
+
 
 // Modal wiring
 const dlg = document.getElementById("dlgShifts");
-document.getElementById("btnShifts").addEventListener("click", () => dlg.classList.add("show"));
+document.getElementById("btnShifts").addEventListener("click", async () => {
+  dlg.classList.add("show");
+  try{
+    if (!cachedShifts.length) {
+      cachedShifts = await fetchShiftsForModal(); // грузим только 1-й раз
+    }
+    // если есть поисковый текст - отфильтруем, иначе покажем всё
+    renderShiftsTable(shiftQuery ? filterShiftsArray(shiftQuery) : cachedShifts);
+  }catch(e){
+    console.error(e);
+  }
+});
+
 document.getElementById("closeShifts").addEventListener("click", () => dlg.classList.remove("show"));
 dlg.addEventListener("click", (e)=>{ if(e.target===dlg) dlg.classList.remove("show"); });
 
@@ -753,6 +950,7 @@ function refreshUpcomingHeights(){
 // запустить инициализацию после загрузки
 initCollapsible('card-upcoming-starts');
 initCollapsible('card-upcoming-ends');
+initCollapsible('card-breakless');   
 
 // полезно пересчитать на ресайз
 window.addEventListener('resize', refreshUpcomingHeights);
