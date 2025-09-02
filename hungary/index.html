@@ -190,6 +190,24 @@
   .segmented button:not(:last-child){ border-right:1px solid rgba(255,255,255,.12); }
   .segmented button.active{ background:rgba(79,140,255,.25); color:#fff; }
   .segmented button:hover{ background:rgba(255,255,255,.08); }
+  /* цветные бейджи для счётчиков */
+  .badge--active {
+    background: rgba(34,197,94,.2);   /* зелёный фон */
+    border-color: rgba(34,197,94,.5);
+    color: #34d399;                   /* зелёный текст */
+  }
+
+  .badge--pre {
+    background: rgba(245,158,11,.2);  /* жёлто-оранжевый */
+    border-color: rgba(245,158,11,.5);
+    color: #fbbf24;
+  }
+
+  .badge--away {
+    background: rgba(239,68,68,.2);   /* красный */
+    border-color: rgba(239,68,68,.5);
+    color: #f87171;
+  }
 
 </style>
 </head>
@@ -227,7 +245,7 @@
 
     <section class="grid">
       <div class="card">
-        <header><h2>Active teammates</h2><span class="badge" id="activeCount">0</span></header>
+        <header><h2>Active teammates</h2><span class="badge badge--active" id="activeCount">0</span></header>
         <div class="table-wrap">
           <table id="tbl-active"><thead><tr><th>Teammate</th><th>Status</th><th>Duration</th></tr></thead><tbody></tbody></table>
         </div>
@@ -235,7 +253,7 @@
       </div>
 
       <div class="card">
-        <header><h2>Pre-Away teammates</h2><span class="badge" id="preCount">0</span></header>
+        <header><h2>Pre-Away teammates</h2><span class="badge badge--pre" id="preCount">0</span></header>
         <div class="table-wrap">
           <table id="tbl-pre"><thead><tr><th>Teammate</th><th>Reason</th><th>Duration</th></tr></thead><tbody></tbody></table>
         </div>
@@ -243,7 +261,7 @@
       </div>
 
       <div class="card">
-        <header><h2>Away teammates</h2><span class="badge" id="awayCount">0</span></header>
+        <header><h2>Away teammates</h2><span class="badge badge--away" id="awayCount">0</span></header>
         <div class="table-wrap">
           <table id="tbl-away"><thead><tr><th>Teammate</th><th>Reason</th><th>Time left</th></tr></thead><tbody></tbody></table>
         </div>
