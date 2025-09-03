@@ -385,7 +385,6 @@
         <thead>
           <tr>
             <th>Teammate</th>
-            <th>Type</th>
             <th>Start</th>
             <th>End</th>
           </tr>
@@ -876,13 +875,12 @@ function renderBreaksCard(){
 
   tb.innerHTML = "";
   if(rows.length === 0){
-    tb.innerHTML = `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="3" style="color:var(--muted)">—</td></tr>`;
   }else{
     rows.forEach(b=>{
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="name-cell">${inboxLinkHTML(b.name)}</td>
-        <td>${b.type}</td>
         <td>${fmtTime(b.start)}</td>
         <td>${fmtTime(b.end)}</td>`;
       tb.appendChild(tr);
