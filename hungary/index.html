@@ -434,6 +434,24 @@
       </div>
     </div>
   </div>
+<!-- Statistics modal -->
+<div class="overlay" id="dlgStats">
+  <div class="modal">
+    <header>
+      <h3>Statistics (last 7 days, hourly)</h3>
+      <div class="controls">
+        <button title="Close" class="close" id="closeStats">✕</button>
+      </div>
+    </header>
+    <div class="hint">Source: <b>Statistics</b> sheet (A:C)</div>
+    <div class="body" style="padding:12px 16px;">
+      <canvas id="statsChart" width="900" height="420"></canvas>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+
 
 <script>
 // === CONFIG ===
@@ -511,6 +529,55 @@ async function fetchBreakless(){
   // Берём только непустые имена
   return values.map(r => (r[0] || "").trim()).filter(Boolean);
 }
+// Читаем Statistics!A2:C и корректно парсим "DD/MM/YYYY HH:MM:SS"
+async function fetchStatsSeries(){
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/` +
+              encodeURIComponent(`Statistics!A2:C`) +
+              `?valueRenderOption=FORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING&fields=values&key=${API_KEY}`;
+
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error('stats load failed ' + r.status);
+  const j = await r.json();
+  const rows = j.values || [];
+
+  function parseStatsDate(v){
+    if (v == null) return null;
+
+    if (typeof v === 'number') {
+      // Excel/Google serial → JS Date
+      const ms = Math.round((v - 25569) * 86400 * 1000);
+      return new Date(ms);
+    }
+
+    const s = String(v).trim();
+
+    // DD/MM/YYYY HH:MM[:SS]
+    const m = s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (m){
+      const day = +m[1], mon = +m[2]-1, yr = +m[3];
+      const hh = +m[4], mm = +m[5], ss = +(m[6]||0);
+      return new Date(yr, mon, day, hh, mm, ss);
+    }
+
+    // fallback — ISO/нативное
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+  }
+
+  const points = rows.map(row => {
+    const dt = parseStatsDate(row[0]);
+    return {
+      t: (dt && !isNaN(dt)) ? dt.toISOString() : null,
+      active: Number(row[1] || 0),
+      should: Number(row[2] || 0)
+    };
+  }).filter(p => p.t);
+
+  // фильтр последней недели (оставь, если нужно)
+  const cutoff = Date.now() - 7*24*60*60*1000;
+  return points.filter(p => +new Date(p.t) >= cutoff);
+}
+
 
 function cell(v){ return (Array.isArray(v) && v.length && v[0]!==undefined) ? v[0] : (typeof v==="string"?v:""); }
 let globalQuery = "";
@@ -639,6 +706,42 @@ function buildBreakList(rows){
   // Для красоты сортируем по старту
   OUT.sort((a,b)=> a.start - b.start);
   return OUT;
+}
+function renderStats(points){
+  const labels = points.map(p => new Date(p.t));
+  const active = points.map(p => p.active);
+  const should = points.map(p => p.should);
+
+  const ctx = document.getElementById('statsChart').getContext('2d');
+  if (statsChart) statsChart.destroy();
+
+  statsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Active',    data: active, borderWidth: 2, tension: 0.25, pointRadius: 1 },
+        { label: 'Should be', data: should, borderWidth: 2, tension: 0.25, pointRadius: 1 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'hour', tooltipFormat: 'MMM d, HH:mm' },
+          ticks: { maxRotation: 0, autoSkip: true }
+        },
+        y: { beginAtZero: true, grace: '5%' }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      interaction: { mode: 'nearest', axis: 'x', intersect: false }
+    }
+  });
 }
 
 function inboxLinkHTML(name){
@@ -1019,6 +1122,23 @@ document.getElementById("btnShifts").addEventListener("click", async () => {
     console.error(e);
   }
 });
+// ==== Statistics modal wiring ====
+const dlgStats = document.getElementById("dlgStats");
+const btnStats = document.getElementById("btnStats"); // кнопка уже есть в шапке
+const btnCloseStats = document.getElementById("closeStats");
+let statsChart = null;
+
+btnStats.addEventListener("click", async () => {
+  dlgStats.classList.add("show");
+  try {
+    const series = await fetchStatsSeries();   // читаем лист Statistics
+    renderStats(series);                       // рисуем график
+  } catch (e) {
+    console.error(e);
+  }
+});
+btnCloseStats.addEventListener("click", () => dlgStats.classList.remove("show"));
+dlgStats.addEventListener("click", (e)=>{ if(e.target===dlgStats) dlgStats.classList.remove("show"); });
 
 document.getElementById("closeShifts").addEventListener("click", () => dlg.classList.remove("show"));
 dlg.addEventListener("click", (e)=>{ if(e.target===dlg) dlg.classList.remove("show"); });
