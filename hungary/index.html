@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/png" href="/favicon.png">
 <title>RTM Dashboard - HUN</title>
 <style>
   :root{
@@ -348,6 +349,43 @@
     </div>
   </div>
 </div>
+<!-- Breaks -->
+<div class="card collapsible" id="card-breaks">
+  <header>
+    <div class="head-left">
+      <h2>Breaks</h2>
+      <span class="badge" id="breaksCount">0</span>
+    </div>
+    <div class="head-right">
+      <div class="segmented" id="breaksFilter">
+        <button data-mode="all" class="active">All</button>
+        <button data-mode="upcoming">Upcoming</button>
+      </div>
+      <button class="toggle" data-target="card-breaks" title="Collapse/expand">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="collapsible-body">
+    <div class="table-wrap">
+      <table id="tbl-breaks">
+        <thead>
+          <tr>
+            <th>Teammate</th>
+            <th>Type</th>
+            <th>Start</th>
+            <th>End</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="footer-note">
+      Source: <b>Today’s shifts</b> (C, J:S) — <code>HUN break regulation</code>
+    </div>
+  </div>
+</div>
 
 
       </div>
@@ -395,6 +433,12 @@ const EMP_SHEET = "Employee list";
 // --- breaks source (другая таблица) ---
 const BREAKLESS_SHEET_ID = "1m4tApcZvlH6dpzekrDqfNoT0YoA3kkGl6hAPwyO_9Oo";
 const BREAKLESS_RANGE = "For dashboard!A2:A";
+// --- Breaks from "Today's shifts" (same spreadsheet id as user gave) ---
+const BREAKS_SHEET_ID = "1m4tApcZvlH6dpzekrDqfNoT0YoA3kkGl6hAPwyO_9Oo";
+const BREAKS_RANGE    = "Today's shifts!C2:S"; // C name, J..S breaks
+
+let breaksMode = 'all'; // 'all' | 'upcoming'
+let cachedBreaks = [];  // нормализованные брейки (каждый как отдельная запись)
 
 let REFRESH_MS = 45000; // 45 cек: можно потом подкрутить
 
@@ -494,6 +538,12 @@ function loadEmpMapFromCache(){
     return null;
   }
 }
+function valAt(row, idx){ return (row && row.length > idx ? row[idx] : ""); }
+function isBreakCellBad(v){
+  if (v == null) return true;
+  const s = String(v).trim().toLowerCase();
+  return !s || s === 'break not found';
+}
 
 // грузим 2 колонки из Employee list и строим Map
 async function fetchEmployeeMapFresh(){
@@ -526,6 +576,57 @@ async function ensureEmpMap(force=false){
   }catch(e){
     console.error('ensureEmpMap failed', e);
   }
+}
+async function fetchBreaksRaw(){
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${BREAKS_SHEET_ID}/values/` +
+              encodeURIComponent(BREAKS_RANGE) +
+              `?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING&fields=values&key=${API_KEY}`;
+  const r = await fetch(url, { cache: 'no-store' });
+  if(!r.ok) throw new Error('Breaks load error: '+r.status);
+  const j = await r.json();
+  return j.values || [];
+}
+
+// Превращаем строки в массив объектов брейков (каждый брейк отдельной записью)
+function buildBreakList(rows){
+  const OUT = [];
+  rows.forEach(row=>{
+    const name = (valAt(row, 0) || "").toString().trim(); // C
+    if(!name) return;
+
+    // индексы по 0-базе относительно С..S
+    const pairs = [
+      {type:'Unpaid', idx:1,  s: valAt(row, 9),  e: valAt(row,10)}, // J,K
+      {type:'Unpaid', idx:2,  s: valAt(row,11), e: valAt(row,12)}, // L,M
+      {type:'Paid',   idx:1,  s: valAt(row,13), e: valAt(row,14)}, // N,O
+      {type:'Paid',   idx:2,  s: valAt(row,15), e: valAt(row,16)}, // P,Q  (в задании 'q' — берём Q)
+      {type:'Paid',   idx:3,  s: valAt(row,17), e: valAt(row,18)}, // R,S
+    ];
+
+    let hasAnyValid = false;
+
+    pairs.forEach(p=>{
+      if (isBreakCellBad(p.s) || isBreakCellBad(p.e)) return;
+      const sd = parseDateFlexible(p.s);
+      const ed = parseDateFlexible(p.e);
+      if(!sd || !ed || isNaN(sd) || isNaN(ed)) return;
+
+      hasAnyValid = true;
+      OUT.push({
+        name,
+        type: `${p.type} ${p.idx}`,
+        start: sd,
+        end: ed
+      });
+    });
+
+    // если по сотруднику все брейки "break not found"/пустые — мы просто его пропускаем (по ТЗ)
+    if(!hasAnyValid){ /* skip entirely */ }
+  });
+
+  // Для красоты сортируем по старту
+  OUT.sort((a,b)=> a.start - b.start);
+  return OUT;
 }
 
 function inboxLinkHTML(name){
@@ -643,6 +744,50 @@ function renderBreakless(names){
   const card = document.getElementById('card-breakless');
   if (card) refreshCollapsible(card);
 
+}
+function computeUpcomingBreaks(list){
+  const now = new Date();
+  return list.filter(b=>{
+    const diffMin = (b.start - now) / 60000;
+    return diffMin >= 0 && diffMin <= 60; // в ближайший час
+  }).sort((a,b)=> a.start - b.start);
+}
+
+function renderBreaksCard(){
+  const tb = document.querySelector("#tbl-breaks tbody");
+  if(!tb) return;
+
+  const rows = (breaksMode === 'upcoming') ? computeUpcomingBreaks(cachedBreaks) : cachedBreaks;
+
+  tb.innerHTML = "";
+  if(rows.length === 0){
+    tb.innerHTML = `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
+  }else{
+    rows.forEach(b=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="name-cell">${inboxLinkHTML(b.name)}</td>
+        <td>${b.type}</td>
+        <td>${fmtTime(b.start)}</td>
+        <td>${fmtTime(b.end)}</td>`;
+      tb.appendChild(tr);
+    });
+  }
+  document.getElementById('breaksCount').textContent = String(rows.length);
+
+  const card = document.getElementById('card-breaks');
+  if (card) refreshCollapsible(card);
+}
+
+async function refreshBreaks(force=false){
+  // Можно троттлить при желании; пока просто перезагружаем
+  try{
+    const raw = await fetchBreaksRaw();
+    cachedBreaks = buildBreakList(raw);
+    renderBreaksCard();
+  }catch(e){
+    console.error(e);
+  }
 }
 
 // обновляем не чаще, чем раз в 90 секунд
@@ -946,6 +1091,25 @@ function refreshUpcomingHeights(){
     if(el) refreshCollapsible(el);
   });
 }
+// карточка Breaks: collapsed + переключатель + первый рендер
+initCollapsible('card-breaks');
+
+document.getElementById('breaksFilter').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-mode]');
+  if(!btn) return;
+  breaksMode = btn.dataset.mode;
+
+  // UI
+  document.querySelectorAll('#breaksFilter button').forEach(b=> b.classList.remove('active'));
+  btn.classList.add('active');
+
+  renderBreaksCard();
+});
+
+// первая загрузка и периодическое обновление
+refreshBreaks(true);
+// обновляем каждые 5 минут
+setInterval(()=> refreshBreaks(false), 5 * 60 * 1000);
 
 // запустить инициализацию после загрузки
 initCollapsible('card-upcoming-starts');
