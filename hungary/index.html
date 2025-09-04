@@ -126,7 +126,6 @@
   .modal table thead th{position:sticky;top:0;background:rgba(18,24,41,.98);backdrop-filter: blur(6px)}
   .hint{font-size:12px;color:var(--muted);padding:8px 16px 0}
 
-  .corner-gif {position: fixed; top: 1px; left: 40px; width: 80px; height: auto; z-index: 1000; pointer-events: none;}
 
   .search-wrap{position: relative; display:flex; align-items:center; border:1px solid rgba(255,255,255,.09); background:rgba(255,255,255,.04); color:#d6dcf5; border-radius:999px; height:40px; padding:0 10px; cursor:pointer; transition:.25s all ease; min-width: 40px;}
   .search-wrap svg{position: absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:16px; height:16px; pointer-events:none;}
@@ -211,25 +210,31 @@
     border-color: rgba(239,68,68,.5);
     color: #f87171;
   }
+ .logo {
+  height: 50px;       /* высота логотипа */
+  margin-right: 15px; /* отступ справа */
+  margin-left: 25px;
+  margin-bottom: 15px;
+  flex-shrink: 0;     /* не сжимать при переполнении */
+}
+
+@media (max-width: 768px) {
+  .logo {
+    height: 22px;   /* чуть меньше на мобильных */
+    margin-right: 8px;
+  }
+}
 
 </style>
 </head>
 <body>
-  <img
-  src="https://media.tenor.com/dRHmcsSmZaYAAAAj/wolt-delivery.gif"
-  alt="Wolt delivery"
-  class="corner-gif"
-  loading="lazy"
-  decoding="async"
-  fetchpriority="low"
-  width="80"
-  height="80"
-/>
+
 
 
   <div class="wrap">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
       <div class="flex">
+        <img id="logo" src="frame1.gif" alt="Wolt logo" class="logo" />
         <div class="pill">Support Monitoring Dashboard - Hungary</div>
         <div class="pill btn" id="btnShifts">Today’s shifts</div>
         <div class="pill btn" id="btnStats">Statistics</div>
@@ -1275,6 +1280,23 @@ function pickDayFilter(r){ // r: {start, end} — строки из шитов
   }
   return sameDay(start, target);
 }
+// --- логотип: статичная и анимационная гифки ---
+const logo = document.getElementById('logo');
+const staticLogo = "frame.gif";
+const animatedLogo = "https://media.tenor.com/dRHmcsSmZaYAAAAj/wolt-delivery.gif";
+
+// сколько держать анимацию (мс)
+const ANIM_DURATION = 1700; // 4 сек
+
+setInterval(() => {
+  if (!logo) return;
+  // переключаем на анимацию
+  logo.src = animatedLogo;
+
+  // через ANIM_DURATION возвращаем статичный кадр
+  setTimeout(() => { logo.src = staticLogo; }, ANIM_DURATION);
+
+}, 15000); // каждые 15 сек
 
 </script>
 </body>
