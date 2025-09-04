@@ -224,17 +224,64 @@
     margin-right: 8px;
   }
 }
+/* --- Fullscreen loader --- */
+.loader-overlay{
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px;
+  background: rgba(3,8,23,.72);      /* полупрозрачный фон */
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  opacity: 0; pointer-events: none;
+  transition: .2s opacity ease;
+}
+.loader-overlay.show{ opacity: 1; pointer-events: auto; }
+
+.loader-card{
+  display:flex; align-items:center; gap:14px;
+  padding:16px 18px; border-radius:14px;
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  color:#e8eefc; font-weight:600;
+}
+.loader-spinner{
+  width:22px; height:22px; border-radius:50%;
+  border: 2.5px solid rgba(255,255,255,.18);
+  border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to{ transform: rotate(360deg); } }
+
+/* --- tiny spinner в плашке "Last updated" --- */
+.pill.loading{
+  position: relative; padding-left: 30px; /* место под спиннер */
+}
+.pill.loading::before{
+  content:""; position:absolute; left:10px; top:50%; transform: translateY(-50%);
+  width:14px; height:14px; border-radius:50%;
+  border: 2px solid rgba(255,255,255,.18);
+  border-top-color: var(--accent);
+  animation: spin .9s linear infinite;
+}
 
 </style>
 </head>
 <body>
 
 
+  <!-- Fullscreen loader shown while the dashboard warms up -->
+  <div id="loader" class="loader-overlay show">
+    <div class="loader-card">
+      <div class="loader-spinner"></div>
+      <div>Loading data…</div>
+    </div>
+  </div>
 
   <div class="wrap">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
       <div class="flex">
-        <img id="logo" src="frame1.gif" alt="Wolt logo" class="logo" />
+        <img id="logo" src="frame.gif" alt="Wolt logo" class="logo" fetchpriority="high" />
         <div class="pill">Support Monitoring Dashboard - Hungary</div>
         <div class="pill btn" id="btnShifts">Today’s shifts</div>
         <div class="pill btn" id="btnStats">Statistics</div>
@@ -494,6 +541,23 @@ let cachedShifts = [];
 let shiftQuery = "";
 let empMap = new Map();
 
+// --- логотип: статичная и анимационная гифки ---
+const logo = document.getElementById('logo');
+const staticLogo = "frame.gif";
+const animatedLogo = "https://media.tenor.com/dRHmcsSmZaYAAAAj/wolt-delivery.gif";
+
+// сколько держать анимацию (мс)
+const ANIM_DURATION = 1700; // 4 сек
+
+setInterval(() => {
+  if (!logo) return;
+  // переключаем на анимацию
+  logo.src = animatedLogo;
+
+  // через ANIM_DURATION возвращаем статичный кадр
+  setTimeout(() => { logo.src = staticLogo; }, ANIM_DURATION);
+
+}, 15000); // каждые 15 сек
 async function fetchRanges(){
   const base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet`;
   const params = [
@@ -1054,17 +1118,40 @@ function applyGlobalSearch(q){
     if(nameTxt.toLowerCase().includes(globalQuery.toLowerCase())){ tr.classList.add("match-away"); nameCell.innerHTML = boldMatch(nameTxt, globalQuery); }
   });
 }
+// --- Loader helpers ---
+const $loader = document.getElementById('loader');
+const $lastUpdated = document.getElementById('lastUpdated');
+function showLoader(){ if($loader) $loader.classList.add('show'); }
+function hideLoader(){ if($loader) $loader.classList.remove('show'); }
+function startTinySpinner(){ $lastUpdated?.classList.add('loading'); }
+function stopTinySpinner(){ $lastUpdated?.classList.remove('loading'); }
+
+let firstLoadDone = false;
 
 async function tick(){
   try{
-    const json = await fetchRanges(); // только основной дашборд
+    if (!firstLoadDone) {
+      showLoader();               // большой оверлей при старте
+    } else {
+      startTinySpinner();          // мини-спиннер на следующих тиках
+    }
+
+    const json = await fetchRanges();   // основной дашборд
     render(json);
+
+    if (!firstLoadDone) {
+      firstLoadDone = true;
+      hideLoader();                // убираем оверлей после первого успешного рендера
+    }
   }catch(err){
     console.error(err);
     document.getElementById("lastUpdated").textContent =
       "Load failed — check access/API key";
+  }finally{
+    stopTinySpinner();             // на всякий случай погасим мини-спиннер
   }
 }
+
 
 
 tick();
@@ -1280,23 +1367,6 @@ function pickDayFilter(r){ // r: {start, end} — строки из шитов
   }
   return sameDay(start, target);
 }
-// --- логотип: статичная и анимационная гифки ---
-const logo = document.getElementById('logo');
-const staticLogo = "frame.gif";
-const animatedLogo = "https://media.tenor.com/dRHmcsSmZaYAAAAj/wolt-delivery.gif";
-
-// сколько держать анимацию (мс)
-const ANIM_DURATION = 1700; // 4 сек
-
-setInterval(() => {
-  if (!logo) return;
-  // переключаем на анимацию
-  logo.src = animatedLogo;
-
-  // через ANIM_DURATION возвращаем статичный кадр
-  setTimeout(() => { logo.src = staticLogo; }, ANIM_DURATION);
-
-}, 15000); // каждые 15 сек
 
 </script>
 </body>
