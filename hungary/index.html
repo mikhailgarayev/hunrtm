@@ -253,17 +253,18 @@
 }
 @keyframes spin { to{ transform: rotate(360deg); } }
 
-/* --- tiny spinner в плашке "Last updated" --- */
-.pill.loading{
-  position: relative; padding-left: 30px; /* место под спиннер */
-}
-.pill.loading::before{
-  content:""; position:absolute; left:10px; top:50%; transform: translateY(-50%);
+/* Плашка как контейнер с зазором */
+.last-updated{ display:inline-flex; align-items:center; gap:8px; }
+
+/* Сам «микро-спиннер» как нормальный элемент */
+.tiny-spinner{
   width:14px; height:14px; border-radius:50%;
-  border: 2px solid rgba(255,255,255,.18);
+  flex:0 0 auto;
+  border:2px solid rgba(255,255,255,.18);
   border-top-color: var(--accent);
   animation: spin .9s linear infinite;
 }
+
 
 </style>
 </head>
@@ -384,7 +385,6 @@
           <div class="footer-note">Source: <b>Current Shift</b> sheet, columns A:F</div>
         </div>
       </div>
-      <!-- Agents without scheduled break -->
 <!-- Agents without scheduled break -->
 <div class="card collapsible" id="card-breakless">
   <header>
@@ -404,9 +404,16 @@
   <div class="collapsible-body">
     <div class="table-wrap">
       <table id="tbl-breakless">
-        <thead><tr><th>Teammate</th></tr></thead>
-        <tbody></tbody>
-      </table>
+      <thead>
+        <tr>
+          <th>Teammate</th>
+          <th>Shift type</th>
+          <th>Start</th>
+          <th>End</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
     </div>
     <div class="footer-note">
       Source: <b>For dashboard list</b>(A2:A) — doc <code>HUN Break regulation</code>
@@ -540,6 +547,8 @@ const ranges = [
 let cachedShifts = [];
 let shiftQuery = "";
 let empMap = new Map();
+let inFlight = false;        // чтобы тик не накладывался
+let tinyTimer = null;        // задержка перед мини-спиннером
 
 // --- логотип: статичная и анимационная гифки ---
 const logo = document.getElementById('logo');
@@ -558,6 +567,13 @@ setInterval(() => {
   setTimeout(() => { logo.src = staticLogo; }, ANIM_DURATION);
 
 }, 15000); // каждые 15 сек
+function fetchWithTimeout(resource, options = {}, timeout = 12000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  return fetch(resource, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(id));
+}
+
 async function fetchRanges(){
   const base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet`;
   const params = [
@@ -568,7 +584,7 @@ async function fetchRanges(){
     `key=${API_KEY}`
   ].join("&");
 
-  const res = await fetch(`${base}?${params}`, { cache: "no-store" });
+  const res = await fetchWithTimeout(`${base}?${params}`, { cache: "no-store" }, 12000);
   if(!res.ok){ const t = await res.text(); throw new Error("Load error: " + res.status + " " + t); }
   return res.json();
 }
@@ -732,6 +748,28 @@ async function fetchBreaksRaw(){
   if(!r.ok) throw new Error('Breaks load error: '+r.status);
   const j = await r.json();
   return j.values || [];
+}
+let lastBreaklessNames = []; // запомним, чтобы перерисовать после обновления смен
+
+function findTodayShiftByName(name){
+  if (!name || !cachedShifts.length) return null;
+
+  const nn = normalizeName(name);
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // все записи на сегодня по этому имени
+  const list = cachedShifts.filter(r => {
+    if (normalizeName(r.name) !== nn) return false;
+    const sd = parseDateFlexible(r.start);
+    return sd && sameDay(sd, startOfToday);
+  });
+
+  if (!list.length) return null;
+
+  // если их несколько — берём с самым ранним стартом
+  list.sort((a,b)=> (parseDateFlexible(a.start) - parseDateFlexible(b.start)));
+  return list[0];
 }
 
 // Превращаем строки в массив объектов брейков (каждый брейк отдельной записью)
@@ -917,17 +955,38 @@ function renderUpcomingCards(){
 
 }
 function renderBreakless(names){
+  lastBreaklessNames = Array.isArray(names) ? names : [];
+
   const tb = document.querySelector("#tbl-breakless tbody");
-  if(!names || names.length === 0){
-    tb.innerHTML = `<tr><td style="color:var(--muted)">—</td></tr>`;
+  if(!tb) return;
+
+  if(!lastBreaklessNames.length){
+    tb.innerHTML = `<tr><td colspan="4" style="color:var(--muted)">—</td></tr>`;
   }else{
-    tb.innerHTML = names.map(n => `<tr><td class="name-cell">${inboxLinkHTML(n)}</td></tr>`).join("");
+    tb.innerHTML = "";
+    lastBreaklessNames.forEach(n => {
+      const sh = findTodayShiftByName(n);
+      const type  = sh?.type || "—";
+      const start = sh?.start ? fmtTime(parseDateFlexible(sh.start)) : "—";
+      const end   = sh?.end   ? fmtTime(parseDateFlexible(sh.end))   : "—";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="name-cell">${inboxLinkHTML(n)}</td>
+        <td>${type}</td>
+        <td>${start}</td>
+        <td>${end}</td>
+      `;
+      tb.appendChild(tr);
+    });
   }
-  document.getElementById("breaklessCount").textContent = String(names.length);
+
+  document.getElementById("breaklessCount").textContent = String(lastBreaklessNames.length);
+
   const card = document.getElementById('card-breakless');
   if (card) refreshCollapsible(card);
-
 }
+
 function computeUpcomingBreaks(list){
   const now = new Date();
   return list.filter(b=>{
@@ -1123,34 +1182,54 @@ const $loader = document.getElementById('loader');
 const $lastUpdated = document.getElementById('lastUpdated');
 function showLoader(){ if($loader) $loader.classList.add('show'); }
 function hideLoader(){ if($loader) $loader.classList.remove('show'); }
-function startTinySpinner(){ $lastUpdated?.classList.add('loading'); }
-function stopTinySpinner(){ $lastUpdated?.classList.remove('loading'); }
+function startTinySpinner(){
+  if(!$lastUpdated) return;
+  if(!$lastUpdated.querySelector('.tiny-spinner')){
+    const s = document.createElement('span');
+    s.className = 'tiny-spinner';
+    $lastUpdated.prepend(s); // кружок слева от текста
+  }
+}
+function stopTinySpinner(){
+  if(!$lastUpdated) return;
+  const s = $lastUpdated.querySelector('.tiny-spinner');
+  if(s) s.remove();
+}
+
 
 let firstLoadDone = false;
 
 async function tick(){
+  if (inFlight) return;      // уже идёт — не стартуем второй раз
+  inFlight = true;
+
   try{
     if (!firstLoadDone) {
-      showLoader();               // большой оверлей при старте
+      showLoader();
     } else {
-      startTinySpinner();          // мини-спиннер на следующих тиках
+      // покажем мини-спиннер только если запрос дольше 400мс
+      if (tinyTimer) clearTimeout(tinyTimer);
+      tinyTimer = setTimeout(startTinySpinner, 400);
     }
 
-    const json = await fetchRanges();   // основной дашборд
+    const json = await fetchRanges();
     render(json);
 
     if (!firstLoadDone) {
       firstLoadDone = true;
-      hideLoader();                // убираем оверлей после первого успешного рендера
+      hideLoader();
     }
-  }catch(err){
+  } catch(err){
     console.error(err);
     document.getElementById("lastUpdated").textContent =
       "Load failed — check access/API key";
-  }finally{
-    stopTinySpinner();             // на всякий случай погасим мини-спиннер
+  } finally {
+    inFlight = false;
+    if (tinyTimer) { clearTimeout(tinyTimer); tinyTimer = null; }
+    stopTinySpinner();   // на всякий случай всегда снимаем класс
   }
 }
+
 
 
 
@@ -1172,7 +1251,11 @@ async function loop(){
 ensureEmpMap(false);
 // Подтянем смены отдельно для карточек "Upcoming …"
 fetchShiftsForModal()
-  .then(arr => { cachedShifts = arr; renderUpcomingCards(); })
+  .then(arr => { 
+    cachedShifts = arr; 
+    renderUpcomingCards();
+    if (lastBreaklessNames.length) renderBreakless(lastBreaklessNames);
+  })
   .catch(console.error);
 
 // Обновлять раз в 5 минут
