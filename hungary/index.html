@@ -428,6 +428,7 @@
       <span class="badge" id="breaksCount">0</span>
     </div>
     <div class="head-right">
+      <input id="breaksSearch" class="search" type="search" placeholder="Search teammate…" style="min-width:180px; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.15); background:#0e1424; color:#e8eefc;"/>
       <div class="segmented" id="breaksFilter">
         <button data-mode="all" class="active">All</button>
         <button data-mode="upcoming">Upcoming</button>
@@ -530,6 +531,7 @@ const BREAKS_RANGE    = "Today's shifts!C2:S"; // C name, J..S breaks
 
 let breaksMode = 'all'; // 'all' | 'upcoming'
 let cachedBreaks = [];  // нормализованные брейки (каждый как отдельная запись)
+let breaksQuery = ""; // строка поиска по сотрудникам
 
 let REFRESH_MS = 45000; // 45 cек: можно потом подкрутить
 
@@ -784,12 +786,13 @@ function buildBreakList(rows){
 
     // индексы по 0-базе относительно С..S
     const pairs = [
-      {type:'Unpaid', idx:1,  s: valAt(row, 9),  e: valAt(row,10)}, // J,K
-      {type:'Unpaid', idx:2,  s: valAt(row,11), e: valAt(row,12)}, // L,M
-      {type:'Paid',   idx:1,  s: valAt(row,13), e: valAt(row,14)}, // N,O
-      {type:'Paid',   idx:2,  s: valAt(row,15), e: valAt(row,16)}, // P,Q  (в задании 'q' — берём Q)
-      {type:'Paid',   idx:3,  s: valAt(row,17), e: valAt(row,18)}, // R,S
+    {type:'Unpaid', idx:1,  s: valAt(row, 7),  e: valAt(row, 8)},  // J,K
+    {type:'Unpaid', idx:2,  s: valAt(row, 9),  e: valAt(row,10)}, // L,M
+    {type:'Paid',   idx:1,  s: valAt(row,11), e: valAt(row,12)}, // N,O
+    {type:'Paid',   idx:2,  s: valAt(row,13), e: valAt(row,14)}, // P,Q
+    {type:'Paid',   idx:3,  s: valAt(row,15), e: valAt(row,16)}, // R,S
     ];
+
 
     let hasAnyValid = false;
 
@@ -997,12 +1000,21 @@ function computeUpcomingBreaks(list){
     return diffMin >= 0 && diffMin <= 60; // в ближайший час
   }).sort((a,b)=> a.start - b.start);
 }
+function filterBreaksArray(query){
+  const q = (query||"").trim().toLowerCase();
+  let rows = (breaksMode === 'upcoming') ? computeUpcomingBreaks(cachedBreaks) : cachedBreaks;
+
+  if(q){
+    rows = rows.filter(r => r.name.toLowerCase().includes(q));
+  }
+  return rows;
+}
 
 function renderBreaksCard(){
   const tb = document.querySelector("#tbl-breaks tbody");
   if(!tb) return;
 
-  const rows = (breaksMode === 'upcoming') ? computeUpcomingBreaks(cachedBreaks) : cachedBreaks;
+  const rows = filterBreaksArray(breaksQuery);
 
   tb.innerHTML = "";
   if(!firstLoadDone){
@@ -1424,7 +1436,11 @@ document.getElementById('breaksFilter').addEventListener('click', (e)=>{
 
   renderBreaksCard();
 });
-
+// обработчик поиска по сотрудникам 👇
+document.getElementById("breaksSearch").addEventListener("input", (e)=>{
+  breaksQuery = e.target.value;
+  renderBreaksCard();
+});
 // первая загрузка и периодическое обновление
 refreshBreaks(true);
 // обновляем каждые 5 минут
