@@ -144,7 +144,7 @@
   td.name-cell a:hover{ color: var(--accent); border-bottom-color: var(--accent); }
 
   /* кнопки */
-  #btnShifts, #btnStats{ border-color: rgba(79,140,255,.45); color:#e9f1ff; }
+  #btnShifts, #btnStats, #btnAllBreaks, #searchWrap{ border-color: rgba(79,140,255,.45); color:#e9f1ff; }
   #btnShifts:hover, #btnStats:hover{ background: rgba(79,140,255,.28); box-shadow: 0 0 0 2px var(--ring) inset; }
   .support-link{ border-color: rgba(79,140,255,.45); text-decoration:none; cursor:pointer; }
   .support-link:hover{ background:rgba(79,140,255,.25); border-color:var(--accent); color:#fff; }
@@ -424,17 +424,15 @@
 <div class="card collapsible" id="card-breaks">
   <header>
     <div class="head-left">
-      <h2>Breaks</h2>
+      <h2>Upcoming Breaks (next hour)</h2>
       <span class="badge" id="breaksCount">0</span>
     </div>
     <div class="head-right">
-      <input id="breaksSearch" class="search" type="search" placeholder="Search teammate…" style="min-width:180px; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.15); background:#0e1424; color:#e8eefc;"/>
-      <div class="segmented" id="breaksFilter">
-        <button data-mode="all" class="active">All</button>
-        <button data-mode="upcoming">Upcoming</button>
-      </div>
+      <button class="pill btn" id="btnAllBreaks">All breaks</button>
       <button class="toggle" data-target="card-breaks" title="Collapse/expand">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
       </button>
     </div>
   </header>
@@ -442,24 +440,26 @@
   <div class="collapsible-body">
     <div class="table-wrap">
       <table id="tbl-breaks">
-      <thead>
-        <tr>
-          <th>Teammate</th>
-          <th>Break start</th>
-          <th>Break end</th>
-          <th>Shift type</th>
-          <th>Shift start</th>
-          <th>Shift end</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+        <thead>
+          <tr>
+            <th>Teammate</th>
+            <th>Break start</th>
+            <th>Break end</th>
+            <th>Shift type</th>
+            <th>Shift start</th>
+            <th>Shift end</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
     <div class="footer-note">
-      Source: <b>Today’s shifts</b> (C, J:S) — <code>HUN break regulation</code>
+      Showing only breaks in the next hour. <br>
+      Click <b>All breaks</b> to see the full list.
     </div>
   </div>
 </div>
+
 
 
       </div>
@@ -496,6 +496,39 @@
       </div>
     </div>
   </div>
+<!-- All Breaks modal -->
+<div class="overlay" id="dlgBreaks">
+  <div class="modal">
+    <header>
+      <h3>All Breaks</h3>
+      <div class="controls">
+        <div class="segmented" id="breaksModalFilter">
+          <button data-mode="all" class="active">All</button>
+          <button data-mode="upcoming">Upcoming</button>
+        </div>
+        <input id="breaksModalSearch" class="search" type="search" placeholder="Search teammate…" />
+        <button title="Close" class="close" id="closeBreaks">✕</button>
+      </div>
+    </header>
+    <div class="hint">Source: <b>Today’s shifts</b> (C, J:S) — <code>HUN break regulation</code></div>
+    <div class="body">
+      <table id="tbl-all-breaks">
+        <thead>
+          <tr>
+            <th>Teammate</th>
+            <th>Break start</th>
+            <th>Break end</th>
+            <th>Shift type</th>
+            <th>Shift start</th>
+            <th>Shift end</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- Statistics modal -->
 <div class="overlay" id="dlgStats">
   <div class="modal">
@@ -758,24 +791,28 @@ let lastBreaklessNames = []; // запомним, чтобы перерисов�
 
 function findTodayShiftByName(name){
   if (!name || !cachedShifts.length) return null;
-
   const nn = normalizeName(name);
-  const today = new Date();
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-  // все записи на сегодня по этому имени
-  const list = cachedShifts.filter(r => {
-    if (normalizeName(r.name) !== nn) return false;
-    const sd = parseDateFlexible(r.start);
-    return sd && sameDay(sd, startOfToday);
-  });
-
+  // все записи по этому имени
+  const list = cachedShifts.filter(r => normalizeName(r.name) === nn);
   if (!list.length) return null;
 
-  // если их несколько — берём с самым ранним стартом
-  list.sort((a,b)=> (parseDateFlexible(a.start) - parseDateFlexible(b.start)));
+  const now = new Date();
+
+  // ищем активную смену — ту, которая уже началась и ещё не закончилась
+  const active = list.find(r => {
+    const sd = parseDateFlexible(r.start);
+    const ed = parseDateFlexible(r.end);
+    return sd && ed && sd <= now && ed >= now;
+  });
+
+  if (active) return active;
+
+  // если нет активной — берём ближайшую будущую
+  list.sort((a,b)=> parseDateFlexible(a.start) - parseDateFlexible(b.start));
   return list[0];
 }
+
 
 // Превращаем строки в массив объектов брейков (каждый брейк отдельной записью)
 function buildBreakList(rows){
@@ -866,10 +903,8 @@ function inboxLinkHTML(name){
 // Заменить существующую parseDateFlexible на эту
 function parseDateFlexible(val){
   if (val == null) return null;
-  const s = String(val).replace(/\u00A0/g, ' ').trim(); // NBSP → пробел
+  const s = String(val).replace(/\u00A0/g, ' ').trim();
 
-  // 1) Жёстко поддерживаем "DD/MM/YYYY HH:MM[:SS]" (или с '.' или '-')
-  //    Пример: 02/09/2025 13:00:00
   const m = s.match(
     /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/
   );
@@ -877,22 +912,32 @@ function parseDateFlexible(val){
     let day = +m[1], mon = +m[2] - 1, yr = +m[3];
     if (yr < 100) yr += 2000;
     const hh = +m[4], mm = +m[5], ss = +(m[6] || 0);
-    return new Date(yr, mon, day, hh, mm, ss); // локальная таймзона (например Europe/Budapest)
+    let d = new Date(yr, mon, day, hh, mm, ss);
+
+    // 🔥 фиксим "00:00" после полуночи
+    const now = new Date();
+    if (hh < 6 && now.getHours() >= 20) {
+      d.setDate(d.getDate() + 1); // переносим на следующий день
+    }
+    return d;
   }
 
-  // 2) Запасной вариант — пусть попробует нативный парсер
   const d = new Date(s);
   if (!isNaN(d)) return d;
 
-  // 3) Только время "HH:MM[:SS]" → сегодня
   const t = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if (t) {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), +t[1], +t[2], +(t[3] || 0), 0);
+    let d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +t[1], +t[2], +(t[3] || 0));
+    if (+t[1] < 6 && now.getHours() >= 20) {
+      d.setDate(d.getDate() + 1);
+    }
+    return d;
   }
 
   return null;
 }
+
 
 
 function fmtTime(d){
@@ -910,14 +955,25 @@ function computeUpcoming(shifts){
     const startDt = parseDateFlexible(r.start);
     const endDt   = parseDateFlexible(r.end);
 
+    // Upcoming starts (как было)
     if(startDt){
       const diffMin = (startDt - now) / 60000;
       if(diffMin >= 0 && diffMin <= 60){
         starting.push({ name:r.name, type:r.type, start:startDt, end:endDt });
       }
     }
+
+    // Upcoming ends
     if(endDt){
-      const diffMin = (endDt - now) / 60000;
+      let diffMin = (endDt - now) / 60000;
+
+      // ⚡ спец-обработка для "ровно 00:00"
+      if (endDt.getHours() === 0 && endDt.getMinutes() === 0) {
+        // берём конец как полночь → показываем, если мы в последнем часу дня
+        const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+        diffMin = (midnight - now) / 60000;
+      }
+
       if(diffMin >= 0 && diffMin <= 60){
         ending.push({ name:r.name, type:r.type, start:startDt, end:endDt });
       }
@@ -928,6 +984,7 @@ function computeUpcoming(shifts){
   ending.sort((a,b)=> a.end - b.end);
   return { starting, ending };
 }
+
 
 function renderUpcomingCards(){
   const { starting, ending } = computeUpcoming(cachedShifts);
@@ -1014,19 +1071,15 @@ function renderBreaksCard(){
   const tb = document.querySelector("#tbl-breaks tbody");
   if(!tb) return;
 
-  const rows = filterBreaksArray(breaksQuery);
+  const rows = computeUpcomingBreaks(cachedBreaks);
 
   tb.innerHTML = "";
-  if(!firstLoadDone){
-  tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">Loading data… Please, wait :(</td></tr>`;
-} else if(rows.length === 0){
-  tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">No data</td></tr>`;
-}
-else{
+  if(rows.length === 0){
+    tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">No upcoming breaks or data is loading...</td></tr>`;
+  } else {
     rows.forEach(b=>{
-      const tr = document.createElement('tr');
       const shift = findTodayShiftByName(b.name);
-
+      const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="name-cell">${inboxLinkHTML(b.name)}</td>
         <td>${fmtTime(b.start)}</td>
@@ -1034,15 +1087,15 @@ else{
         <td>${shift ? shift.type : '—'}</td>
         <td>${shift ? shift.start : '—'}</td>
         <td>${shift ? shift.end : '—'}</td>`;
-
       tb.appendChild(tr);
     });
   }
-  document.getElementById('breaksCount').textContent = String(rows.length);
 
+  document.getElementById('breaksCount').textContent = String(rows.length);
   const card = document.getElementById('card-breaks');
   if (card) refreshCollapsible(card);
 }
+
 
 async function refreshBreaks(force=false){
   // Можно троттлить при желании; пока просто перезагружаем
@@ -1150,6 +1203,74 @@ function renderShiftsTable(rows){
     tb.appendChild(tr);
   });
 }
+// Modal wiring for All Breaks
+const dlgBreaks = document.getElementById("dlgBreaks");
+const btnAllBreaks = document.getElementById("btnAllBreaks");
+const btnCloseBreaks = document.getElementById("closeBreaks");
+
+btnAllBreaks.addEventListener("click", () => {
+  dlgBreaks.classList.add("show");
+  renderBreaksModalTable();
+});
+
+btnCloseBreaks.addEventListener("click", () => dlgBreaks.classList.remove("show"));
+dlgBreaks.addEventListener("click", (e)=>{ if(e.target===dlgBreaks) dlgBreaks.classList.remove("show"); });
+
+let breaksModalMode = 'all';
+let breaksModalQuery = "";
+
+// фильтрация брейков для модалки
+function filterBreaksForModal(query){
+  const q = (query||"").trim().toLowerCase();
+  let rows = (breaksModalMode === 'upcoming') ? computeUpcomingBreaks(cachedBreaks) : cachedBreaks;
+
+  if(q){
+    rows = rows.filter(r => r.name.toLowerCase().includes(q));
+  }
+  return rows;
+}
+
+function renderBreaksModalTable(){
+  const tb = document.querySelector("#tbl-all-breaks tbody");
+  if(!tb) return;
+
+  const rows = filterBreaksForModal(breaksModalQuery);
+  tb.innerHTML = "";
+
+  if(rows.length === 0){
+    tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">No data or still loading..</td></tr>`;
+  } else {
+    rows.forEach(b=>{
+      const shift = findTodayShiftByName(b.name);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="name-cell">${inboxLinkHTML(b.name)}</td>
+        <td>${fmtTime(b.start)}</td>
+        <td>${fmtTime(b.end)}</td>
+        <td>${shift ? shift.type : '—'}</td>
+        <td>${shift ? shift.start : '—'}</td>
+        <td>${shift ? shift.end : '—'}</td>`;
+      tb.appendChild(tr);
+    });
+  }
+}
+
+// обработчики фильтра и поиска внутри модалки
+document.getElementById('breaksModalFilter').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-mode]');
+  if(!btn) return;
+  breaksModalMode = btn.dataset.mode;
+
+  document.querySelectorAll('#breaksModalFilter button').forEach(b=> b.classList.remove('active'));
+  btn.classList.add('active');
+
+  renderBreaksModalTable();
+});
+
+document.getElementById("breaksModalSearch").addEventListener("input", (e)=>{
+  breaksModalQuery = e.target.value;
+  renderBreaksModalTable();
+});
 
 function filterShiftsArray(query){
   const q = (query||'').trim().toLowerCase();
@@ -1425,22 +1546,6 @@ function refreshUpcomingHeights(){
 // карточка Breaks: collapsed + переключатель + первый рендер
 initCollapsible('card-breaks');
 
-document.getElementById('breaksFilter').addEventListener('click', (e)=>{
-  const btn = e.target.closest('button[data-mode]');
-  if(!btn) return;
-  breaksMode = btn.dataset.mode;
-
-  // UI
-  document.querySelectorAll('#breaksFilter button').forEach(b=> b.classList.remove('active'));
-  btn.classList.add('active');
-
-  renderBreaksCard();
-});
-// обработчик поиска по сотрудникам 👇
-document.getElementById("breaksSearch").addEventListener("input", (e)=>{
-  breaksQuery = e.target.value;
-  renderBreaksCard();
-});
 // первая загрузка и периодическое обновление
 refreshBreaks(true);
 // обновляем каждые 5 минут
