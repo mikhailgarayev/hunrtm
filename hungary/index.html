@@ -441,15 +441,18 @@
   <div class="collapsible-body">
     <div class="table-wrap">
       <table id="tbl-breaks">
-        <thead>
-          <tr>
-            <th>Teammate</th>
-            <th>Start</th>
-            <th>End</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <thead>
+        <tr>
+          <th>Teammate</th>
+          <th>Break start</th>
+          <th>Break end</th>
+          <th>Shift type</th>
+          <th>Shift start</th>
+          <th>Shift end</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
     </div>
     <div class="footer-note">
       Source: <b>Today’s shifts</b> (C, J:S) — <code>HUN break regulation</code>
@@ -1002,15 +1005,24 @@ function renderBreaksCard(){
   const rows = (breaksMode === 'upcoming') ? computeUpcomingBreaks(cachedBreaks) : cachedBreaks;
 
   tb.innerHTML = "";
-  if(rows.length === 0){
-    tb.innerHTML = `<tr><td colspan="3" style="color:var(--muted)">—</td></tr>`;
-  }else{
+  if(!firstLoadDone){
+  tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">Loading data… Please, wait :(</td></tr>`;
+} else if(rows.length === 0){
+  tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">No data</td></tr>`;
+}
+else{
     rows.forEach(b=>{
       const tr = document.createElement('tr');
+      const shift = findTodayShiftByName(b.name);
+
       tr.innerHTML = `
         <td class="name-cell">${inboxLinkHTML(b.name)}</td>
         <td>${fmtTime(b.start)}</td>
-        <td>${fmtTime(b.end)}</td>`;
+        <td>${fmtTime(b.end)}</td>
+        <td>${shift ? shift.type : '—'}</td>
+        <td>${shift ? shift.start : '—'}</td>
+        <td>${shift ? shift.end : '—'}</td>`;
+
       tb.appendChild(tr);
     });
   }
@@ -1254,6 +1266,7 @@ fetchShiftsForModal()
   .then(arr => { 
     cachedShifts = arr; 
     renderUpcomingCards();
+    renderBreaksCard();
     if (lastBreaklessNames.length) renderBreakless(lastBreaklessNames);
   })
   .catch(console.error);
@@ -1264,6 +1277,7 @@ setInterval(async () => {
     const arr = await fetchShiftsForModal();
     cachedShifts = arr;
     renderUpcomingCards();
+    renderBreaksCard();
   } catch(e) { console.error(e); }
 }, 5 * 60 * 1000);
 
